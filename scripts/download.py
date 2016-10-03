@@ -23,7 +23,7 @@ class LandsatDownload(object):
                         band = []
                         band.append(b[0])
                         l_download.download(scene, band)
-                        f.write(os.path.join(download_dir, str(s), str(s) + '_B' + str(b[0]) + '.TIF'))
+                        f.write(os.path.join(download_dir, str(s), str(s) + '_B' + str(b[0]) + '.TIF\n'))
                         f.flush()
             f.close()
         except Exception as e:
