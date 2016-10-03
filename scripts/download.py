@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import os
 from landsat.downloader import Downloader
 from utils.utils import initLogger
 
@@ -11,6 +12,7 @@ class LandsatDownload(object):
 
     def download(self, response_dict, download_dir):
         try:
+            f = open(os.path.join(download_dir, 'download_files.txt'), 'w')
             l_download = Downloader(download_dir=download_dir)
             for s in response_dict:
                 scene = []
@@ -21,6 +23,9 @@ class LandsatDownload(object):
                         band = []
                         band.append(b[0])
                         l_download.download(scene, band)
+                        f.write(os.path.join(download_dir, str(s), str(s) + '_B' + str(b[0]) + '.TIF'))
+                        f.flush()
+            f.close()
         except Exception as e:
             logger.error('Exception downloading landsat images with stacktrace %s' % (str(e)))
             return False

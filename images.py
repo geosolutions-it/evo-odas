@@ -51,22 +51,28 @@ def main():
     # Search Scenes
     scenesgjson = LandsatSearch().search(args)
 
-    db = DB().initDB(args.database)
-    conn = db.connect()
-    cur = conn.cursor()
+    # Skip database
+    if args.database:
+        db = DB().initDB(args.database)
+        conn = db.connect()
+        cur = conn.cursor()
 
     # Check if granules already exist
     scenes = defaultdict(list)
     if len(scenesgjson['features']) > 0:
         for s in scenesgjson['features']:
             for b in list(args.bands):
-                r = db.query(cur, b, str(s['properties']['sceneID']))
-                if not r:
-                    scenes[s['properties']['sceneID']].append((b, False, s))
+                if args.database:
+                    r = db.query(cur, b, str(s['properties']['sceneID']))
+                    if not r:
+                        scenes[s['properties']['sceneID']].append((b, False, s))
+                    else:
+                        scenes[s['properties']['sceneID']].append((b, True, s))
                 else:
-                    scenes[s['properties']['sceneID']].append((b, True, s))
-    cur.close()
-    conn.close()
+                    scenes[s['properties']['sceneID']].append((b, False, s))
+    if args.database:
+        cur.close()
+        conn.close()
 
     # Append ingestion file
     file = open(os.path.join(args.output, 'ingest.txt'), 'w')
