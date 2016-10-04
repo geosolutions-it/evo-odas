@@ -26,11 +26,25 @@ def initLogger():
     RotatingFileHandler('landsat_ows12.log', maxBytes=10485760, backupCount=6)
     return logger
 
+def sysexecute(command):
+    try:
+        cstr = ''
+        for c in command:
+            cstr += c + ' '
+        logger = initLogger()
+        logger.debug('Running command ' + cstr[:-1])
+        os.system(cstr[:-1])
+    except Exception as e:
+        logger.error('Exception running command %s with stacktrace %s' % (command, str(e)))
+
 def execute(command, output=False):
     try:
+        cstr = ''
+        for c in command:
+            cstr += c + ' '
         logger = initLogger()
-        logger.debug('Running command ' + str(command))
-        p = subprocess.Popen(command,
+        logger.debug('Running command ' + cstr[:-1])
+        p = subprocess.Popen(cstr[:-1],
                              stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT,
                              )

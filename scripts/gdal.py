@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from utils.utils import execute
+from utils.utils import execute, sysexecute
 
 class GDAL(object):
     def __init__(self):
@@ -17,10 +17,12 @@ class GDAL(object):
         command.append('-r')
         command.append(self.rmethod)
         command.append('-clean')
+        if configs:
+            command.append(configs)
         command.append(file)
         for scale in scales:
             command.append(scale)
-        execute(command)
+        sysexecute(command)
 
     def warp(self, inputf, outputf, t_srs):
         command = ['gdalwarp']
@@ -39,5 +41,5 @@ class GDAL(object):
             command.append('-overwrite')
         command.append(inputf)
         command.append(outputf)
-        execute(command)
+        sysexecute(command)
 

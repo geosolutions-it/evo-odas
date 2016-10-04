@@ -42,6 +42,7 @@ def main():
                         gd.warp(granule, output_granule, args.warp[0])
                         # Stick with original filenames
                         os.remove(granule)
+                        os.remove(output_granule[:-3] + 'IMD')
                         os.rename(output_granule, granule)
 
     if args.overviews:
