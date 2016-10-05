@@ -37,8 +37,6 @@ class GDAL(object):
             command.append('-multi')
         command.append('-t_srs')
         command.append(t_srs)
-        if self.overwrite:
-            command.append('-overwrite')
         command.append(inputf)
         command.append(outputf)
         sysexecute(command)
