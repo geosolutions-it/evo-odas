@@ -28,9 +28,9 @@ class DB(object):
 
         return conn
 
-    def query(self, cursor, band, sceneID):
+    def lsat8_query(self, cursor, band, sceneID):
         try:
-            sql = 'SELECT regexp_matches(location, \'%s\') FROM ows12.\"B%s\";' % (sceneID, band)
+            sql = 'SELECT regexp_matches(location, \'%s\') FROM \"B%s\";' % (sceneID, band)
             cursor.execute(sql)
             results = cursor.fetchall()
             if len(results) == 0:
@@ -40,7 +40,7 @@ class DB(object):
         except Exception as e:
             print str(e)
 
-    def ingest(self, cursor, band, row, path):
+    def lsat8_ingest(self, cursor, band, row, path):
         try:
             image = os.path.join(path, str(row[2]['properties']['sceneID']),
                                  str(row[2]['properties']['sceneID']) + '_B' + band + '.TIF')
@@ -48,7 +48,7 @@ class DB(object):
             geom = 'ST_GeomFromGeoJSON(\'{"type": "' + str(row[2]['geometry']['type']) \
                    + '", "coordinates": ' + str(row[2]['geometry']['coordinates']) \
                    + ', "crs":{"type":"name","properties":{"name":"EPSG:4326"}}}\')'
-            sql = 'INSERT INTO ows12.\"B%s\" (location, time, the_geom) VALUES (\'%s\', \'%s\', %s);' % (band, image, time, geom)
+            sql = 'INSERT INTO \"B%s\" (location, time, the_geom) VALUES (\'%s\', \'%s\', %s);' % (band, image, time, geom)
             cursor.execute(str(sql))
         except Exception as e:
             print str(e)

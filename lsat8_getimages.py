@@ -62,7 +62,7 @@ def main():
         for s in scenesgjson['features']:
             for b in list(args.bands):
                 if args.database:
-                    r = db.query(cur, b, str(s['properties']['sceneID']))
+                    r = db.lsat8_query(cur, b, str(s['properties']['sceneID']))
                     if not r:
                         scenes[s['properties']['sceneID']].append((b, False, s))
                     else:

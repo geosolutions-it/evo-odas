@@ -30,7 +30,7 @@ def main():
             row = json.loads(l)
             for b in list(args.bands):
                 if b in row[0][0]:
-                    db.ingest(cur, b, row, args.files)
+                    db.lsat8_ingest(cur, b, row, args.files)
 
     cur.close()
     conn.commit()
