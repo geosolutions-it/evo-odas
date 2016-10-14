@@ -33,7 +33,9 @@ def sysexecute(command):
             cstr += c + ' '
         logger = initLogger()
         logger.debug('Running command ' + cstr[:-1])
-        os.system(cstr[:-1])
+        r = os.system(cstr[:-1])
+        if r != 0:
+            raise OSError
     except Exception as e:
         logger.error('Exception running command %s with stacktrace %s' % (command, str(e)))
 

@@ -43,42 +43,4 @@ class GDAL(object):
         command.append(outputf)
         sysexecute(command)
 
-    def calc(self, outputf, datatype='Byte', filemap='-A myfile',
-             bandsmap='--A_band=1', fformat='GTiff', creation_options=False,
-             calc_expr='A+B'):
-        command = ['gdal_calc.py']
-        command.append('--type=' + datatype)
-        command.append('--format=' + fformat)
-        if creation_options:
-            command.append(creation_options)
-        command.append(filemap)
-        command.append(bandsmap)
-        command.append('--calc=' + calc_expr)
-        command.append('--outfile=' + outputf)
-        sysexecute(command)
-
-    def merge(self, inputf, outputf, datatype='Byte', init=False,
-              nodata_v=False, out_nodata_v=False, separate=False,
-              fformat='GTiff', creation_options=False):
-        command = ['gdal_merge.py']
-        if datatype:
-            command.append('-ot ' + datatype)
-        if init:
-            command.append('-init \"' + init + '\"')
-        if nodata_v:
-            command.append('-n ' + nodata_v)
-        if out_nodata_v:
-            command.append('-a_nodata ' + out_nodata_v)
-        if separate:
-            command.append('-separate')
-        if fformat:
-            command.append('-of ' + fformat)
-        if creation_options:
-            command.append(creation_options)
-        if outputf:
-            command.append('-o ' + outputf)
-        for f in inputf:
-            command.append(f)
-        sysexecute(command)
-
 
