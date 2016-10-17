@@ -44,7 +44,6 @@ def main():
                         help='Database connection params in the following order\n'
                              'db_name db_host db_port db_user db_password')
 
-
     args = parser.parse_args()
 
     # Search Scenes

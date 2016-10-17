@@ -16,7 +16,9 @@ def main():
                                  'average_magphase', 'mode'),
                         help='Resample method to use on GDAL utils. default is nearest')
     parser.add_argument('-c', '--config', nargs='?', help='Specific GDAL configuration string\n'
-                                                          'Ex: --config COMPRESS_OVERVIEW JPEG')
+                                                          'Ex: --config COMPRESS_OVERVIEW DEFLATE')
+    parser.add_argument('-m', '--mask', action="store_true", default=False,
+                        help='Compute and add bitmask workflow')
     parser.add_argument('-o', '--overviews', nargs=1,
                         help='Overviews to add to the target image')
     parser.add_argument('-w', '--warp', nargs=1,
@@ -47,6 +49,34 @@ def main():
                         if os.path.exists(output_granule[:-3] + 'IMD'):
                             os.remove(output_granule[:-3] + 'IMD')
                         os.rename(output_granule, granule)
+
+    if args.mask:
+        with open(os.path.join(args.files, 'ingest.txt'), 'r') as file:
+            for l in file:
+                row = json.loads(l)
+                for b in list(args.bands):
+                    if b in row[0][0]:
+                        granule = os.path.join(args.files, str(row[2]['properties']['sceneID']),
+                                     str(row[2]['properties']['sceneID']) + '_B' + b + '.TIF')
+                        outfile = granule.replace('.TIF', '.MSK')
+                        # TODO: Enable parallel processing
+                        gd.calc(outputf=outfile, datatype='UInt16', filemap='-A ' + granule,
+                                bandsmap='--A_band=1', creation_options='--creation-option=TILED=YES '
+                                                                        '--creation-option=BLOCKXSIZE=512 '
+                                                                        '--creation-option=BLOCKYSIZE=512 '
+                                                                        '--creation-option=COMPRESS=DEFLATE '
+                                                                        '--creation-option=INTERLEAVE=BAND',
+                                calc_expr='\"logical_not(A==0)\"')
+                        outmaskedfile = granule.replace('.TIF', '_MASKED.TIF')
+                        gd.merge(outputf=outmaskedfile, datatype='UInt16', fformat='GTiff', separate=True,
+                                 inputf=(granule, outfile), creation_options='-co TILED=YES '
+                                                                             '-co BLOCKXSIZE=512 '
+                                                                             '-co BLOCKYSIZE=512 '
+                                                                             '-co COMPRESS=DEFLATE '
+                                                                             '-co INTERLEAVE=BAND')
+                        os.remove(granule)
+                        os.remove(outfile)
+                        os.rename(outmaskedfile, granule)
 
     if args.overviews:
         scales = args.overviews[0].split(',')
