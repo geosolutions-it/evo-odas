@@ -11,5 +11,10 @@ class Mosaic(object):
 
     @property
     def catalog(self):
-        return Catalog(self.rest_url, username=self.username, password=self.password)
+        return Catalog(self, url=self.rest_url, username=self.username, password=self.password)
 
+    def getStore(self, catalog='test', store='mystore'):
+        return catalog.getStore(store)
+
+    def harvestGranule(self, catalog='test', store='mystore', granule='mygranule'):
+        catalog.harvest_externalgranule(granule, store)

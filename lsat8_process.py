@@ -73,9 +73,10 @@ def main():
                                                                              '-co BLOCKXSIZE=512 '
                                                                              '-co BLOCKYSIZE=512 '
                                                                              '-co COMPRESS=DEFLATE '
-                                                                             '-co INTERLEAVE=BAND')
-                        os.remove(granule)
+                                                                             '-co INTERLEAVE=BAND '
+                                                                             '-co ALPHA=NO')
                         os.remove(outfile)
+                        os.remove(granule)
                         os.rename(outmaskedfile, granule)
 
     if args.overviews:
