@@ -18,12 +18,19 @@ def main():
 
     catalog = Catalog(service_url=args.catalog[0], username=args.catalog[1], password=args.catalog[2])
     store = catalog.get_store(args.store[0].split(':')[1], args.store[0].split(':')[0])
-
+    coverages = catalog.mosaic_coverages(store)
     with open(os.path.join(args.granules, 'download_files.txt'), 'r') as file:
         for l in file:
-            # TODO: Enable parallel processing
-            g = 'file://' + l.replace('\n', '')
-            catalog.harvest_externalgranule(g, store)
+            ingest = True
+            gf = l.replace('\n', '').split('/')[-1]
+            for c in coverages['coverages']['coverage']:
+                granules = catalog.mosaic_granules(c['name'], store, filter='location like \'%' + gf + '%\'')
+                if len(granules['features']) > 0:
+                    print 'File ' + gf + ' already exists on database'
+                    ingest = False
+            if ingest:
+                g = 'file://' + l.replace('\n', '')
+                catalog.harvest_externalgranule(g, store)
 
 if __name__ == '__main__':
     main()
