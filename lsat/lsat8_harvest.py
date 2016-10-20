@@ -25,6 +25,12 @@ def main():
 
     args = parser.parse_args()
 
+    # Before we proceed, check if we retrieved any files during previous download step
+    num_lines = sum(1 for l in open(os.path.join(args.granules, 'download_files.txt')))
+    if num_lines == 0:
+        logger.info('Skipping harvesting step. No files found!')
+        sys.exit(0)
+
     catalog = Catalog(service_url=args.catalog[0], username=args.catalog[1], password=args.catalog[2])
     store = catalog.get_store(args.store[0].split(':')[1], args.store[0].split(':')[0])
     coverages = catalog.mosaic_coverages(store)

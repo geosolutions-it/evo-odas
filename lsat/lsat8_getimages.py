@@ -4,9 +4,14 @@ import os
 import argparse
 import json
 import sys
+from geoserver.catalog import Catalog
 from collections import defaultdict
 from scripts.lsat8 import Landsat
 from utils.db import DB
+from utils.utils import initLogger
+
+# Make logger global here
+logger = initLogger()
 
 def main():
 
@@ -37,9 +42,14 @@ def main():
     # Download specific
     parser.add_argument('-b', '--bands', help='If you specify bands, landsat-util will try to download '
                                               'the band from S3. If the band does not exist, an error is returned\n'
-                                              'Ex: 432',
-                                 default='432')
+                                              'Ex: 432', default='432')
     parser.add_argument('output', help='Destination path to save images')
+
+    # Retrieve granules from gsconfig
+    parser.add_argument('--catalog', nargs=3, help='Geoserver REST URL and authentication',
+                        default=('http://localhost:8080/geoserver/rest', 'admin', 'geoserver'))
+    parser.add_argument('--store', nargs=1, help='The store name to retrieve coverages with workspace name '
+                                                 '(ows12:landsat)')
 
     parser.add_argument('--database', nargs=5, metavar=('db_name', 'db_host', 'db_port', 'db_user', 'db_password'),
                         help='Database connection params in the following order\n'
@@ -50,11 +60,17 @@ def main():
     # Search Scenes
     scenesgjson = Landsat().search(args)
 
-    # Skip database
+    # Check with database
     if args.database:
         db = DB().initDB(args.database)
         conn = db.connect()
         cur = conn.cursor()
+
+    # Check with gsconfig
+    if args.catalog and args.store:
+        catalog = Catalog(service_url=args.catalog[0], username=args.catalog[1], password=args.catalog[2])
+        store = catalog.get_store(args.store[0].split(':')[1], args.store[0].split(':')[0])
+        coverages = catalog.mosaic_coverages(store)
 
     # Check if granules already exist
     scenes = defaultdict(list)
@@ -67,6 +83,16 @@ def main():
                         scenes[s['properties']['sceneID']].append((b, False, s))
                     else:
                         scenes[s['properties']['sceneID']].append((b, True, s))
+                elif args.catalog and args.store:
+                    for c in coverages['coverages']['coverage']:
+                        granules = catalog.mosaic_granules(c['name'], store, filter='location like \'%' +
+                                                                                    s['properties']['sceneID'] + '%\'')
+                        if len(granules['features']) > 0:
+                            logger.info('Scene ' + s['properties']['sceneID'] + ' for band ' + b +
+                                        ' already exists on database')
+                            scenes[s['properties']['sceneID']].append((b, True, s))
+                        else:
+                            scenes[s['properties']['sceneID']].append((b, False, s))
                 else:
                     scenes[s['properties']['sceneID']].append((b, False, s))
     if args.database:

@@ -35,6 +35,12 @@ def main():
     # Add common options
     gd.rmethod = args.resample[0]
 
+    # Before we proceed, check if we retrieved any files during previous download step
+    num_lines = sum(1 for l in open(os.path.join(args.files, 'ingest.txt')))
+    if num_lines == 0:
+        logger.info('Skipping processing step. No files to process found!')
+        sys.exit(0)
+
     if not os.path.exists(os.path.join(args.files, 'ingest.txt')):
         logger.info('Missing file from previous download job.\nPlease run this job first!')
         sys.exit(1)
