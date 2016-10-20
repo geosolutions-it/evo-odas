@@ -3,6 +3,7 @@
 import os
 import argparse
 import json
+import sys
 from collections import defaultdict
 from scripts.lsat8 import Landsat
 from utils.db import DB

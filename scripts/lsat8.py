@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import sys
 from landsat.downloader import Downloader
 from landsat.search import Search
 from utils.utils import initLogger
@@ -24,7 +25,9 @@ class Landsat(object):
             response = l_search.search(paths_rows=args.pathrow, lat=args.lat, lon=args.lon, start_date=args.start,
                                        end_date=args.end, cloud_min=self.cloud_min, cloud_max=args.cloud,
                                        limit=args.limit, geojson=self.geojson)
-
+            if 'status' in response:
+                logger.info(response['message'])
+                sys.exit(1)
             return response
         except Exception as e:
             logger.error('Exception querying landsat images with stacktrace %s' % (str(e)))
