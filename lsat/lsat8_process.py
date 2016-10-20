@@ -2,9 +2,13 @@
 
 import argparse
 import os
+import sys
 import json
 from scripts import gdal
+from utils.utils import initLogger
 
+# Make logger global here
+logger = initLogger()
 
 def main():
     parser = argparse.ArgumentParser(description="OWS12 Landsat script. Wrapper to landsat-util scripts.")
@@ -30,6 +34,10 @@ def main():
     gd = gdal.GDAL()
     # Add common options
     gd.rmethod = args.resample[0]
+
+    if not os.path.exists(os.path.join(args.files, 'ingest.txt')):
+        logger.info('Missing file from previous download job.\nPlease run this job first!')
+        sys.exit(1)
 
     if args.warp:
         warp_options = '-srcnodata 0 -dstnodata 0 -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 -co TILED=YES ' \
