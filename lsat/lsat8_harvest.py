@@ -58,7 +58,7 @@ def main():
     if args.delete:
         today = time.strftime('%Y-%m-%dT00:00:00')
         for c in coverages['coverages']['coverage']:
-            granules = catalog.mosaic_granules(c['name'], store, filter='time before P' + args.delete[0] + 'M/' + today)
+            granules = catalog.mosaic_granules(c['name'], store, filter='time before P' + str(args.delete[0]) + 'M/' + today)
             if len(granules['features']) > 0:
                 for g in granules['features']:
                     logger.info('Deleting granule ' + g['properties']['location'])
