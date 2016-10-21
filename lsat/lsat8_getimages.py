@@ -57,8 +57,15 @@ def main():
 
     args = parser.parse_args()
 
+    # Append ingestion file
+    file = open(os.path.join(args.output, 'ingest.txt'), 'w')
     # Search Scenes
     scenesgjson = Landsat().search(args)
+
+    # Exit gently if no data found
+    if 'status' in scenesgjson:
+        logger.info(scenesgjson['message'])
+        sys.exit(0)
 
     # Check with database
     if args.database:
@@ -99,8 +106,6 @@ def main():
         cur.close()
         conn.close()
 
-    # Append ingestion file
-    file = open(os.path.join(args.output, 'ingest.txt'), 'w')
     for s in scenes:
         for b in scenes[s]:
             if not b[1]:
