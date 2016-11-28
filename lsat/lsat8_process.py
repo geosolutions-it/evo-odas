@@ -13,8 +13,7 @@ logger = initLogger()
 def main():
     parser = argparse.ArgumentParser(description="OWS12 Landsat script. Wrapper to landsat-util scripts.")
     parser.add_argument('-b', '--bands', help='Select the bands to inject into GeoServer mosaic\n'
-                                              'Ex: 432',
-                        default='432')
+                                              'Ex: 4 3 2', default='4 3 2', type=int, nargs='+')
     parser.add_argument('-r', '--resample', nargs=1, default='nearest',
                         choices=('nearest', 'average', 'gauss', 'cubic', 'cubicspline', 'lanczos', 'average_mp',
                                  'average_magphase', 'mode'),
@@ -51,7 +50,7 @@ def main():
         with open(os.path.join(args.files, 'ingest.txt'), 'r') as file:
             for l in file:
                 row = json.loads(l)
-                for b in list(args.bands):
+                for b in args.bands:
                     if b in row[0][0]:
                         granule = os.path.join(args.files, str(row[2]['properties']['sceneID']),
                                      str(row[2]['properties']['sceneID']) + '_B' + b + '.TIF')

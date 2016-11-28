@@ -42,7 +42,7 @@ def main():
     # Download specific
     parser.add_argument('-b', '--bands', help='If you specify bands, landsat-util will try to download '
                                               'the band from S3. If the band does not exist, an error is returned\n'
-                                              'Ex: 432', default='432')
+                                              'Ex: 4 3 2', default='4 3 2', type=int, nargs='+')
     parser.add_argument('output', help='Destination path to save images')
 
     # Retrieve granules from gsconfig
@@ -83,7 +83,7 @@ def main():
     scenes = defaultdict(list)
     if len(scenesgjson['features']) > 0:
         for s in scenesgjson['features']:
-            for b in list(args.bands):
+            for b in args.bands:
                 if args.database:
                     r = db.lsat8_query(cur, b, str(s['properties']['sceneID']))
                     if not r:

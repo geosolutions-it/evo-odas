@@ -36,7 +36,7 @@ The scripts were tested in **Python 2.7** and have some dependencies:
 `python lsat/lsat8_process.py -h`
 
 ### Arguments
-* `-b, --bands` - Scene bands to retrieve. e.g. `-b 432` (RGB bands).
+* `-b, --bands` - Scene bands to retrieve. e.g. `-b 4 3 2` (RGB bands).
 * `-r, --resample` - Resample method to use on GDAL utils. Default is `nearest`
 * `-c, --config` - Specific GDAL configuration string. e.g. `--config COMPRESS_OVERVIEW DEFLATE`
 * `-o, --overviews` - Overviews to add to the target image. e.g. `-o "2,4,8,16,32"`
