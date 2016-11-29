@@ -81,6 +81,7 @@ def main():
 
     # Check if granules already exist
     scenes = defaultdict(list)
+    Landsat().download_file(args.output)
     if len(scenesgjson['features']) > 0:
         for s in scenesgjson['features']:
             for b in args.bands:
@@ -89,7 +90,8 @@ def main():
                     if not r:
                         scenes[s['properties']['sceneID']].append((b, False, s))
                     else:
-                        scenes[s['properties']['sceneID']].append((b, True, s))
+                        if Landsat().download(str(s['properties']['sceneID']), str(b), args.output):
+                            scenes[s['properties']['sceneID']].append((b, True, s))
                 elif args.catalog and args.store:
                     for c in coverages['coverages']['coverage']:
                         granules = catalog.mosaic_granules(c['name'], store, filter='location like \'%' +
@@ -99,9 +101,11 @@ def main():
                                         ' already exists on database')
                             scenes[s['properties']['sceneID']].append((b, True, s))
                         else:
-                            scenes[s['properties']['sceneID']].append((b, False, s))
+                            if Landsat().download(str(s['properties']['sceneID']), str(b), args.output):
+                                scenes[s['properties']['sceneID']].append((b, False, s))
                 else:
-                    scenes[s['properties']['sceneID']].append((b, False, s))
+                    if Landsat().download(str(s['properties']['sceneID']), str(b), args.output):
+                        scenes[s['properties']['sceneID']].append((b, False, s))
     if args.database:
         cur.close()
         conn.close()
@@ -112,10 +116,6 @@ def main():
                 file.write(json.dumps(b) + '\n')
                 file.flush()
     file.close()
-
-    # Download Scenes
-    Landsat().download(scenes, args.output)
-
 
 if __name__ == '__main__':
     main()

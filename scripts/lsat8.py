@@ -16,6 +16,9 @@ class Landsat(object):
         self.geojson = True
         self.download_list = 'download_files.txt'
 
+    def download_file(self, download_dir):
+        open(os.path.join(download_dir, self.download_list), 'w')
+
     def search(self, args):
         try:
             logger.debug('Executing landsat search with params %s' % args)
@@ -30,22 +33,19 @@ class Landsat(object):
             logger.error('Exception querying landsat images with stacktrace %s' % (str(e)))
             return False
 
-    def download(self, response_dict, download_dir):
+    def download(self, scene, band, download_dir):
         try:
-            f = open(os.path.join(download_dir, self.download_list), 'w')
+            f = open(os.path.join(download_dir, self.download_list), 'a')
             l_download = Downloader(download_dir=download_dir)
-            for s in response_dict:
-                scene = []
-                scene.append(str(s))
-                for b in response_dict[s]:
-                    if not b[1]:
-                        # Download per band, in case only 1 band missing...
-                        band = []
-                        band.append(b[0])
-                        l_download.download(scene, band)
-                        f.write(os.path.join(download_dir, str(s), str(s) + '_B' + str(b[0]) + '.TIF\n'))
-                        f.flush()
+            s = []
+            b = []
+            s.append(scene)
+            b.append(band)
+            l_download.download(s, b)
+            f.write(os.path.join(download_dir, scene, scene + '_B' + band + '.TIF\n'))
+            f.flush()
             f.close()
+            return True
         except Exception as e:
             logger.error('Exception downloading landsat images with stacktrace %s' % (str(e)))
             return False
