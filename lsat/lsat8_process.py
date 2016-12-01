@@ -51,9 +51,9 @@ def main():
             for l in file:
                 row = json.loads(l)
                 for b in args.bands:
-                    if b in row[0][0]:
+                    if b == row[0]:
                         granule = os.path.join(args.files, str(row[2]['properties']['sceneID']),
-                                     str(row[2]['properties']['sceneID']) + '_B' + b + '.TIF')
+                                     str(row[2]['properties']['sceneID']) + '_B' + str(b) + '.TIF')
                         output_granule = granule.replace('.TIF', '_WARPED.TIF')
                         # TODO: Enable parallel processing
                         gd.warp(inputf=granule, outputf=output_granule, t_srs=args.warp[0], options=warp_options)
@@ -62,15 +62,16 @@ def main():
                         if os.path.exists(output_granule[:-3] + 'IMD'):
                             os.remove(output_granule[:-3] + 'IMD')
                         os.rename(output_granule, granule)
+                        break
 
     if args.mask:
         with open(os.path.join(args.files, 'ingest.txt'), 'r') as file:
             for l in file:
                 row = json.loads(l)
                 for b in list(args.bands):
-                    if b in row[0][0]:
+                    if b == row[0]:
                         granule = os.path.join(args.files, str(row[2]['properties']['sceneID']),
-                                     str(row[2]['properties']['sceneID']) + '_B' + b + '.TIF')
+                                     str(row[2]['properties']['sceneID']) + '_B' + str(b) + '.TIF')
                         outfile = granule.replace('.TIF', '.MSK')
                         # TODO: Enable parallel processing
                         gd.calc(outputf=outfile, datatype='UInt16', filemap='-A ' + granule,
@@ -91,6 +92,7 @@ def main():
                         os.remove(outfile)
                         os.remove(granule)
                         os.rename(outmaskedfile, granule)
+                        break
 
     if args.overviews:
         scales = args.overviews[0].split(',')
@@ -98,14 +100,12 @@ def main():
             for l in file:
                 row = json.loads(l)
                 for b in list(args.bands):
-                    if b in row[0][0]:
+                    if b == row[0]:
                         granule = os.path.join(args.files, str(row[2]['properties']['sceneID']),
-                                     str(row[2]['properties']['sceneID']) + '_B' + b + '.TIF')
+                                     str(row[2]['properties']['sceneID']) + '_B' + str(b) + '.TIF')
                         # TODO: Enable parallel processing
                         gd.addOverviews(file=granule, scales=scales, configs=args.config)
-
-
-
+                        break
 
 
 if __name__ == '__main__':
