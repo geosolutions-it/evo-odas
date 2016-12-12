@@ -67,6 +67,12 @@ class SentinelSat(object):
         for l in prod_file:
             with zipfile.ZipFile(os.path.join(download_path, l.rstrip('\n') + '.zip')) as z:
                 z.extractall(path=download_path)
+        prod_file.close()
+
+    def remove_products(self, download_path):
+        prod_file = self.open_file(download_path, self.products_list, 'r')
+        for l in prod_file:
+            shutil.rmtree(os.path.join(download_path, l.rstrip('\n') + '.SAFE'))
 
     def get_s2_package_granules(self, download_path, package):
         granules = []

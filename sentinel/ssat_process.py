@@ -54,8 +54,9 @@ def main():
             sentinel.warp_granules(args.download, args.bands, gd, args.warp[0], warp_options)
         if args.overviews:
             sentinel.overviews_granules(args.download, args.bands, gd, args.overviews, args.config)
-        # Copy processed granules
+
         sentinel.copy_granules_s2(args.download, args.output, args.bands)
+        sentinel.remove_products(args.download)
 
     except Exception, e:
         logger.error(e)
