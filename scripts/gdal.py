@@ -21,7 +21,7 @@ class GDAL(object):
             command.append(configs)
         command.append(file)
         for scale in scales:
-            command.append(scale)
+            command.append(str(scale))
         sysexecute(command)
 
     def warp(self, inputf, outputf, t_srs, options=False):

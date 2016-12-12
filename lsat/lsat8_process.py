@@ -4,14 +4,14 @@ import argparse
 import os
 import sys
 import json
-from scripts import gdal
+from scripts.gdal import GDAL
 from utils.utils import initLogger
 
 # Make logger global here
 logger = initLogger()
 
 def main():
-    parser = argparse.ArgumentParser(description="OWS12 Landsat script. Wrapper to landsat-util scripts.")
+    parser = argparse.ArgumentParser(description="OWS12 Landsat script. Preprocessing scripts.")
     parser.add_argument('-b', '--bands', help='Select the bands to inject into GeoServer mosaic\n'
                                               'Ex: 4 3 2', default='4 3 2', type=int, nargs='+')
     parser.add_argument('-r', '--resample', nargs=1, default='nearest',
@@ -22,27 +22,27 @@ def main():
                                                           'Ex: --config COMPRESS_OVERVIEW DEFLATE')
     parser.add_argument('-m', '--mask', action="store_true", default=False,
                         help='Compute and add bitmask workflow')
-    parser.add_argument('-o', '--overviews', nargs=1,
-                        help='Overviews to add to the target image')
+    parser.add_argument('-o', '--overviews', type=int, nargs='+',
+                        help='Overviews to add to the target image. \n'
+                        'e.g. 2 4 8 16 32 64')
     parser.add_argument('-w', '--warp', nargs=1,
                         help='The projection EPSG code to use for gdalwarp')
     parser.add_argument('files', help='Mosaic files path')
 
     args = parser.parse_args()
 
-    gd = gdal.GDAL()
+    gd = GDAL()
     # Add common options
     gd.rmethod = args.resample[0]
 
     # Before we proceed, check if we retrieved any files during previous download step
+    if not os.path.exists(os.path.join(args.files, 'ingest.txt')):
+        logger.info('Missing file from previous download job.\nPlease run this job first!')
+        sys.exit(1)
     num_lines = sum(1 for l in open(os.path.join(args.files, 'ingest.txt')))
     if num_lines == 0:
         logger.info('Skipping processing step. No files to process found!')
         sys.exit(0)
-
-    if not os.path.exists(os.path.join(args.files, 'ingest.txt')):
-        logger.info('Missing file from previous download job.\nPlease run this job first!')
-        sys.exit(1)
 
     if args.warp:
         warp_options = '-srcnodata 0 -dstnodata 0 -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 -co TILED=YES ' \
@@ -95,7 +95,7 @@ def main():
                         break
 
     if args.overviews:
-        scales = args.overviews[0].split(',')
+        scales = args.overviews
         with open(os.path.join(args.files, 'ingest.txt'), 'r') as file:
             for l in file:
                 row = json.loads(l)
