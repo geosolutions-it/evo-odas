@@ -8,7 +8,6 @@ import fnmatch
 from utils.utils import initLogger
 from sentinelsat.sentinel import SentinelAPI, get_coordinates, SentinelAPIError
 from datetime import date, timedelta, datetime, time
-from scripts.gdal import GDAL
 
 # Make logger global here
 logger = initLogger()

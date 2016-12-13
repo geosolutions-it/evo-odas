@@ -97,7 +97,7 @@ def main():
                         granules = catalog.mosaic_granules(c['name'], store, filter='location like \'%' +
                                                                                     s['properties']['sceneID'] + '%\'')
                         if len(granules['features']) > 0:
-                            logger.info('Scene ' + s['properties']['sceneID'] + ' for band ' + b +
+                            logger.info('Scene ' + s['properties']['sceneID'] + ' for band ' + str(b) +
                                         ' already exists on database')
                             scenes[s['properties']['sceneID']].append((b, True, s))
                         else:
