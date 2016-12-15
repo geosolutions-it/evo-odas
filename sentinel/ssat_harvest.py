@@ -29,10 +29,10 @@ def main():
     sentinel = SentinelSat()
 
     # Before we proceed, check if we retrieved any files during previous download step
-    if not os.path.exists(os.path.join(args.download, sentinel.products_list)):
+    if not os.path.exists(os.path.join(args.granules, sentinel.products_list)):
         logger.info('Missing file from previous download job.\nPlease run this job first!')
         sys.exit(1)
-    num_lines = sum(1 for l in open(os.path.join(args.download, sentinel.products_list)))
+    num_lines = sum(1 for l in open(os.path.join(args.granules, sentinel.products_list)))
     if num_lines == 0:
         logger.info('Skipping processing step. No files to process found!')
         sys.exit(0)
