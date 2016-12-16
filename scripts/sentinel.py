@@ -5,9 +5,10 @@ import sys
 import zipfile
 import shutil
 import fnmatch
+import time
 from utils.utils import initLogger
 from sentinelsat.sentinel import SentinelAPI, get_coordinates, SentinelAPIError
-from datetime import date, timedelta, datetime, time
+from datetime import date, timedelta, datetime
 
 # Make logger global here
 logger = initLogger()
@@ -135,7 +136,7 @@ class SentinelSat(object):
 
     def insert_granules(self, granules_path, catalog, coverages, store):
         granules_file = self.open_file(granules_path, self.processed_granules, 'r')
-        with open(granules_file) as g:
+        with granules_file as g:
             for l in g:
                 ingest = True
                 gf = l.replace('\n', '').split('/')[-1]
@@ -154,7 +155,7 @@ class SentinelSat(object):
         today = time.strftime('%Y-%m-%dT00:00:00')
         for c in coverages['coverages']['coverage']:
             granules = catalog.mosaic_granules(c['name'], store,
-                                               filter='time before P' + str(range) + 'M/' + today)
+                                               filter='time before P' + str(range[0]) + 'M/' + today)
             if len(granules['features']) > 0:
                 for g in granules['features']:
                     logger.info('Deleting granule ' + g['properties']['location'])

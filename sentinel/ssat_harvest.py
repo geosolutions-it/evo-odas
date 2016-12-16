@@ -47,7 +47,7 @@ def main():
 
     # Delete granules
     if args.delete:
-        sentinel.delete_granules(catalog, coverages, store)
+        sentinel.delete_granules(catalog, coverages, store, args.delete)
 
 if __name__ == '__main__':
     main()
