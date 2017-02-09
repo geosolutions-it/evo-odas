@@ -82,7 +82,7 @@ class SentinelSat(object):
                 granules.append(os.path.join(download_path, package + '.SAFE', 'GRANULE', d, 'IMG_DATA', f))
         return granules
 
-    def copy_granules_s2(self, download_path, granules_path, bands):
+    def copy_granules_s2(self, download_path, granules_path, bands, rgb=True):
         prod_file = self.open_file(download_path, self.products_list, 'r')
         granules_file = self.open_file(granules_path, self.processed_granules, 'w')
         for l in prod_file:
@@ -98,10 +98,17 @@ class SentinelSat(object):
                             granules_file.write(os.path.join(granules_path, f.replace('B08', 'B8A')
                                                               .split('/')[-1:][0]) + '\n')
                             granules_file.flush()
+                # Copy RGB files
+                if rgb:
+                    if fnmatch.fnmatch(f, '*TCI.tif'):
+                        shutil.move(f, granules_path)
+                        granules_file.write(os.path.join(granules_path, f.split('/')[-1:][0]) + '\n')
+                        granules_file.flush()
+
         granules_file.close()
         prod_file.close()
 
-    def warp_granules(self, download_path, bands, gdobj, t_epsg, options):
+    def warp_granules(self, download_path, bands, gdobj, t_epsg, options, rgb=True):
         prod_file = self.open_file(download_path, self.products_list, 'r')
         for l in prod_file:
             for f in self.get_s2_package_granules(download_path, l.rstrip('\n')):
@@ -116,11 +123,18 @@ class SentinelSat(object):
                             gdobj.warp(inputf=f.replace('B08', 'B8A'),
                                        outputf=os.path.join(download_path, output_granule), t_srs=t_epsg,
                                        options=options)
+                        continue
                     else:
                         continue
+                # Process RGB files
+                if rgb:
+                    if fnmatch.fnmatch(f, '*TCI.jp2'):
+                        output_granule = f.replace('.jp2', '.tif')
+                        gdobj.warp(inputf=f, outputf=os.path.join(download_path, output_granule), t_srs=t_epsg,
+                                   options=options)
         prod_file.close()
 
-    def overviews_granules(self, download_path, bands, gdobj, scales, options):
+    def overviews_granules(self, download_path, bands, gdobj, scales, options, rgb=True):
         prod_file = self.open_file(download_path, self.products_list, 'r')
         for l in prod_file:
             for f in self.get_s2_package_granules(download_path, l.rstrip('\n')):
@@ -130,8 +144,14 @@ class SentinelSat(object):
                         gdobj.addOverviews(file=f, scales=scales, configs=options)
                         if b == 'B08':
                             gdobj.addOverviews(file=f.replace('B08', 'B8A'), scales=scales, configs=options)
+                        continue
                     else:
                         continue
+                # Process RGB files
+                if rgb:
+                    if fnmatch.fnmatch(f, '*TCI.tif'):
+                        gdobj.addOverviews(file=f, scales=scales, configs=options)
+
         prod_file.close()
 
     def insert_granules(self, granules_path, catalog, coverages, store):
@@ -149,6 +169,7 @@ class SentinelSat(object):
                     logger.info('Ingesting granule ' + gf)
                     g = 'file://' + l.replace('\n', '')
                     catalog.harvest_externalgranule(g, store)
+
         granules_file.close()
 
     def delete_granules(self, catalog, coverages, store, range):
