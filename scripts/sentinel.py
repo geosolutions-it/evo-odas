@@ -98,6 +98,7 @@ class SentinelSat(object):
                             granules_file.write(os.path.join(granules_path, f.replace('B08', 'B8A')
                                                               .split('/')[-1:][0]) + '\n')
                             granules_file.flush()
+                        continue
                 # Copy RGB files
                 if rgb:
                     if fnmatch.fnmatch(f, '*TCI.tif'):
@@ -110,6 +111,7 @@ class SentinelSat(object):
 
     def warp_granules(self, download_path, bands, gdobj, t_epsg, options, rgb=True):
         prod_file = self.open_file(download_path, self.products_list, 'r')
+        options_rgb = options + " -co PHOTOMETRIC=YCBCR"
         for l in prod_file:
             for f in self.get_s2_package_granules(download_path, l.rstrip('\n')):
                 for b in bands:
@@ -124,18 +126,17 @@ class SentinelSat(object):
                                        outputf=os.path.join(download_path, output_granule), t_srs=t_epsg,
                                        options=options)
                         continue
-                    else:
-                        continue
                 # Process RGB files
                 if rgb:
                     if fnmatch.fnmatch(f, '*TCI.jp2'):
                         output_granule = f.replace('.jp2', '.tif')
                         gdobj.warp(inputf=f, outputf=os.path.join(download_path, output_granule), t_srs=t_epsg,
-                                   options=options)
+                                   options=options_rgb.replace("DEFLATE", "JPEG"))
         prod_file.close()
 
     def overviews_granules(self, download_path, bands, gdobj, scales, options, rgb=True):
         prod_file = self.open_file(download_path, self.products_list, 'r')
+        options_rgb = options + " --config PHOTOMETRIC_OVERVIEW YCBCR"
         for l in prod_file:
             for f in self.get_s2_package_granules(download_path, l.rstrip('\n')):
                 for b in bands:
@@ -145,12 +146,10 @@ class SentinelSat(object):
                         if b == 'B08':
                             gdobj.addOverviews(file=f.replace('B08', 'B8A'), scales=scales, configs=options)
                         continue
-                    else:
-                        continue
                 # Process RGB files
                 if rgb:
                     if fnmatch.fnmatch(f, '*TCI.tif'):
-                        gdobj.addOverviews(file=f, scales=scales, configs=options)
+                        gdobj.addOverviews(file=f, scales=scales, configs=options_rgb.replace("DEFLATE", "JPEG"))
 
         prod_file.close()
 
