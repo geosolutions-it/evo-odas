@@ -36,6 +36,8 @@ def main():
     gd.rmethod = args.resample[0]
 
     sentinel = SentinelSat()
+    sentinel.download_path = args.download
+    sentinel.mosaic_path = args.output
 
     # Before we proceed, check if we retrieved any files during previous download step
     if not os.path.exists(os.path.join(args.download, sentinel.products_list)):
@@ -47,16 +49,14 @@ def main():
         sys.exit(0)
 
     try:
-        sentinel.unpack_products(args.download)
+        sentinel.unpack_products(sentinel.download_path)
         if args.warp:
             warp_options = '-srcnodata 0 -dstnodata 0 -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 -co TILED=YES ' \
                            '-wo OPTIMIZE_SIZE=YES -co COMPRESS=DEFLATE -of GTiff'
-            sentinel.warp_granules(args.download, args.bands, gd, args.warp[0], warp_options)
+            sentinel.warp_granules(sentinel.download_path, sentinel.mosaic_path, args.bands, gd, args.warp[0], warp_options)
         if args.overviews:
-            sentinel.overviews_granules(args.download, args.bands, gd, args.overviews, args.config)
-
-        sentinel.copy_granules_s2(args.download, args.output, args.bands)
-        sentinel.remove_products(args.download)
+            sentinel.overviews_granules(sentinel.mosaic_path, args.bands, gd, args.overviews, args.config)
+        sentinel.remove_products(sentinel.download_path)
 
     except Exception, e:
         logger.error(e)

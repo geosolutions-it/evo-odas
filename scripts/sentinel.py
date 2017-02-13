@@ -22,6 +22,8 @@ class SentinelSat(object):
         self.api_url = 'https://scihub.copernicus.eu/dhus/'
         self.products_list = 'sentinel_products.txt'
         self.processed_granules = 'processed_granules.txt'
+        self.download_path = ''
+        self.mosaic_path = ''
 
     def auth_api(self, auth):
         self.api = SentinelAPI(auth[0], auth[1], self.api_url)
@@ -82,76 +84,48 @@ class SentinelSat(object):
                 granules.append(os.path.join(download_path, package + '.SAFE', 'GRANULE', d, 'IMG_DATA', f))
         return granules
 
-    def copy_granules_s2(self, download_path, granules_path, bands, rgb=True):
+    def warp_granules(self, download_path, granules_path, bands, gdobj, t_epsg, options, rgb=True):
         prod_file = self.open_file(download_path, self.products_list, 'r')
         granules_file = self.open_file(granules_path, self.processed_granules, 'w')
-        for l in prod_file:
-            for f in self.get_s2_package_granules(download_path, l.rstrip('\n')):
-                for b in bands:
-                    b = 'B0' + str(b) if b < 10 else 'B' + str(b)
-                    if fnmatch.fnmatch(f, '*' + b + '.tif'):
-                        shutil.move(f, granules_path)
-                        granules_file.write(os.path.join(granules_path, f.split('/')[-1:][0]) + '\n')
-                        granules_file.flush()
-                        if b == 'B08':
-                            shutil.move(f.replace('B08', 'B8A'), granules_path)
-                            granules_file.write(os.path.join(granules_path, f.replace('B08', 'B8A')
-                                                              .split('/')[-1:][0]) + '\n')
-                            granules_file.flush()
-                        continue
-                # Copy RGB files
-                if rgb:
-                    if fnmatch.fnmatch(f, '*TCI.tif'):
-                        shutil.move(f, granules_path)
-                        granules_file.write(os.path.join(granules_path, f.split('/')[-1:][0]) + '\n')
-                        granules_file.flush()
-
-        granules_file.close()
-        prod_file.close()
-
-    def warp_granules(self, download_path, bands, gdobj, t_epsg, options, rgb=True):
-        prod_file = self.open_file(download_path, self.products_list, 'r')
         options_rgb = options + " -co PHOTOMETRIC=YCBCR"
         for l in prod_file:
             for f in self.get_s2_package_granules(download_path, l.rstrip('\n')):
                 for b in bands:
                     b = 'B0' + str(b) if b < 10 else 'B' + str(b)
                     if fnmatch.fnmatch(f, '*' + b + '.jp2'):
-                        output_granule = f.replace('.jp2', '.tif')
-                        gdobj.warp(inputf=f, outputf=os.path.join(download_path, output_granule), t_srs=t_epsg,
+                        output_granule = os.path.join(granules_path, f.replace('.jp2', '.tif').split('/')[-1:][0])
+                        gdobj.warp(inputf=f, outputf=output_granule, t_srs=t_epsg,
                                    options=options)
+                        granules_file.write(output_granule + '\n')
+                        granules_file.flush()
                         if b == 'B08':
                             output_granule = output_granule.replace('B08', 'B8A')
-                            gdobj.warp(inputf=f.replace('B08', 'B8A'),
-                                       outputf=os.path.join(download_path, output_granule), t_srs=t_epsg,
+                            gdobj.warp(inputf=f.replace('B08', 'B8A'), outputf=output_granule, t_srs=t_epsg,
                                        options=options)
+                            granules_file.write(output_granule + '\n')
+                            granules_file.flush()
                         continue
                 # Process RGB files
                 if rgb:
                     if fnmatch.fnmatch(f, '*TCI.jp2'):
-                        output_granule = f.replace('.jp2', '.tif')
-                        gdobj.warp(inputf=f, outputf=os.path.join(download_path, output_granule), t_srs=t_epsg,
+                        output_granule = os.path.join(granules_path, f.replace('.jp2', '.tif').split('/')[-1:][0])
+                        gdobj.warp(inputf=f, outputf=output_granule, t_srs=t_epsg,
                                    options=options_rgb.replace("DEFLATE", "JPEG"))
-        prod_file.close()
-
-    def overviews_granules(self, download_path, bands, gdobj, scales, options, rgb=True):
-        prod_file = self.open_file(download_path, self.products_list, 'r')
-        options_rgb = options + " --config PHOTOMETRIC_OVERVIEW YCBCR"
-        for l in prod_file:
-            for f in self.get_s2_package_granules(download_path, l.rstrip('\n')):
-                for b in bands:
-                    b = 'B0' + str(b) if b < 10 else 'B' + str(b)
-                    if fnmatch.fnmatch(f, '*' + b + '.tif'):
-                        gdobj.addOverviews(file=f, scales=scales, configs=options)
-                        if b == 'B08':
-                            gdobj.addOverviews(file=f.replace('B08', 'B8A'), scales=scales, configs=options)
+                        granules_file.write(output_granule + '\n')
+                        granules_file.flush()
                         continue
-                # Process RGB files
-                if rgb:
-                    if fnmatch.fnmatch(f, '*TCI.tif'):
-                        gdobj.addOverviews(file=f, scales=scales, configs=options_rgb.replace("DEFLATE", "JPEG"))
-
         prod_file.close()
+        granules_file.close()
+
+    def overviews_granules(self, granules_path, bands, gdobj, scales, options, rgb=True):
+        granules_file = self.open_file(granules_path, self.processed_granules, 'r')
+        options_rgb = options + " --config PHOTOMETRIC_OVERVIEW YCBCR"
+        for l in granules_file:
+            if fnmatch.fnmatch(l.rstrip('\n'), '*TCI.tif'):
+                gdobj.addOverviews(file=l.rstrip('\n'), scales=scales, configs=options_rgb.replace("DEFLATE", "JPEG"))
+            else:
+                gdobj.addOverviews(file=l.rstrip('\n'), scales=scales, configs=options)
+        granules_file.close()
 
     def insert_granules(self, granules_path, catalog, coverages, store):
         granules_file = self.open_file(granules_path, self.processed_granules, 'r')
