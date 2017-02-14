@@ -87,7 +87,6 @@ class SentinelSat(object):
     def warp_granules(self, download_path, granules_path, bands, gdobj, t_epsg, options, rgb=True):
         prod_file = self.open_file(download_path, self.products_list, 'r')
         granules_file = self.open_file(granules_path, self.processed_granules, 'w')
-        options_rgb = options + " -co PHOTOMETRIC=YCBCR"
         for l in prod_file:
             for f in self.get_s2_package_granules(download_path, l.rstrip('\n')):
                 for b in bands:
@@ -110,7 +109,7 @@ class SentinelSat(object):
                     if fnmatch.fnmatch(f, '*TCI.jp2'):
                         output_granule = os.path.join(granules_path, f.replace('.jp2', '.tif').split('/')[-1:][0])
                         gdobj.warp(inputf=f, outputf=output_granule, t_srs=t_epsg,
-                                   options=options_rgb.replace("DEFLATE", "JPEG"))
+                                   options=options)
                         granules_file.write(output_granule + '\n')
                         granules_file.flush()
                         continue
@@ -119,10 +118,9 @@ class SentinelSat(object):
 
     def overviews_granules(self, granules_path, bands, gdobj, scales, options, rgb=True):
         granules_file = self.open_file(granules_path, self.processed_granules, 'r')
-        options_rgb = options + " --config PHOTOMETRIC_OVERVIEW YCBCR"
         for l in granules_file:
             if fnmatch.fnmatch(l.rstrip('\n'), '*TCI.tif'):
-                gdobj.addOverviews(file=l.rstrip('\n'), scales=scales, configs=options_rgb.replace("DEFLATE", "JPEG"))
+                gdobj.addOverviews(file=l.rstrip('\n'), scales=scales, configs=options)
             else:
                 gdobj.addOverviews(file=l.rstrip('\n'), scales=scales, configs=options)
         granules_file.close()
