@@ -3,10 +3,11 @@
 import argparse
 import os
 import sys
-import time
+
 from geoserver.catalog import Catalog
 from utils.utils import initLogger
-from scripts.sentinel import SentinelSat
+
+from ingestion.scripts import SentinelSat
 
 # Make logger global here
 logger = initLogger()

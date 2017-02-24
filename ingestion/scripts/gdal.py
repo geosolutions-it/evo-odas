@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from utils.utils import execute, sysexecute
+from ingestion.utils.utils import sysexecute
 
 
 class GDAL(object):

@@ -1,26 +1,27 @@
 #!/usr/bin/python
 
 import argparse
-import sys
 import os
-from scripts.sentinel import SentinelSat
-from scripts.gdal import GDAL
+import sys
+
 from utils.utils import initLogger
+
+from ingestion.scripts import GDAL
+from ingestion.scripts import SentinelSat
 
 # Make logger global here
 logger = initLogger()
 
 def main():
     parser = argparse.ArgumentParser(description="OWS12 Sentinel preprocess granules script.")
-    parser.add_argument('-b', '--bands', help='If you specify bands, landsat-util will try to download '
-                                              'the band from S3. If the band does not exist, an error is returned\n'
-                                              'Ex: 4 3 2', default='4 3 2', type=int, nargs='+')
+    parser.add_argument('-b', '--bands', help='List of bands to process.\n'
+                                              'e.g. 4 3 2', default='4 3 2', type=int, nargs='+')
     parser.add_argument('-r', '--resample', nargs=1, default='nearest',
                         choices=('nearest', 'average', 'gauss', 'cubic', 'cubicspline', 'lanczos', 'average_mp',
                                  'average_magphase', 'mode'),
                         help='Resample method to use on GDAL utils. default is nearest')
     parser.add_argument('-c', '--config', nargs='?', help='Specific GDAL configuration string\n'
-                                                          'Ex: --config COMPRESS_OVERVIEW DEFLATE')
+                                                          'e.g. --config COMPRESS_OVERVIEW DEFLATE')
     parser.add_argument('-o', '--overviews', help='Overviews to add to the target image.\n'
                                                   'e.g. 2 4 8 16 32 64',
                         type=int, nargs='+')

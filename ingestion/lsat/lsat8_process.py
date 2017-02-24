@@ -1,11 +1,13 @@
 #!/usr/bin/python
 
 import argparse
+import json
 import os
 import sys
-import json
-from scripts.gdal import GDAL
+
 from utils.utils import initLogger
+
+from ingestion.scripts import GDAL
 
 # Make logger global here
 logger = initLogger()

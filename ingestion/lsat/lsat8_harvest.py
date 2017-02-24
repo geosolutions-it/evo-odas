@@ -4,8 +4,10 @@ import argparse
 import os
 import sys
 import time
+
 from geoserver.catalog import Catalog
-from utils.utils import initLogger
+
+from ingestion.utils.utils import initLogger
 
 # Make logger global here
 logger = initLogger()
