@@ -1,10 +1,11 @@
 #!/usr/bin/python
 
 import os
-import sys
+
 from landsat.downloader import Downloader
 from landsat.search import Search
-from utils.utils import initLogger
+
+from ingestion.utils.utils import initLogger
 
 # Make logger global here
 logger = initLogger()

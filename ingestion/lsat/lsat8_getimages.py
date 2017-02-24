@@ -1,14 +1,16 @@
 #!/usr/bin/python
 
-import os
 import argparse
 import json
+import os
 import sys
-from geoserver.catalog import Catalog
 from collections import defaultdict
-from scripts.lsat8 import Landsat
+
+from geoserver.catalog import Catalog
 from utils.db import DB
 from utils.utils import initLogger
+
+from ingestion.scripts import Landsat
 
 # Make logger global here
 logger = initLogger()

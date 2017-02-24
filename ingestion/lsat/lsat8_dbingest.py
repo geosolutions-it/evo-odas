@@ -1,9 +1,10 @@
 #!/usr/bin/python
 
 import argparse
-import os
 import json
-from utils.db import DB
+import os
+
+from ingestion.utils.db import DB
 
 
 def main():

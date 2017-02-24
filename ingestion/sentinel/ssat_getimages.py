@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 import argparse
-from scripts.sentinel import SentinelSat
+
+from ingestion.scripts import SentinelSat
 
 
 def main():

@@ -1,14 +1,16 @@
 #!/usr/bin/python
 
-import os
-import sys
-import zipfile
-import shutil
 import fnmatch
+import os
+import shutil
+import sys
 import time
-from utils.utils import initLogger
-from sentinelsat.sentinel import SentinelAPI, get_coordinates, SentinelAPIError
+import zipfile
 from datetime import date, timedelta, datetime
+
+from sentinelsat.sentinel import SentinelAPI, get_coordinates, SentinelAPIError
+
+from ingestion.utils.utils import initLogger
 
 # Make logger global here
 logger = initLogger()
