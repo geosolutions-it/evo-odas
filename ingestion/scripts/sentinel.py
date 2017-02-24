@@ -7,9 +7,7 @@ import sys
 import time
 import zipfile
 from datetime import date, timedelta, datetime
-
 from sentinelsat.sentinel import SentinelAPI, get_coordinates, SentinelAPIError
-
 from ingestion.utils.utils import initLogger
 
 # Make logger global here
@@ -86,7 +84,39 @@ class SentinelSat(object):
                 granules.append(os.path.join(download_path, package + '.SAFE', 'GRANULE', d, 'IMG_DATA', f))
         return granules
 
-    def warp_granules(self, download_path, granules_path, bands, gdobj, t_epsg, options, rgb=True):
+    def get_mask(self, granule, band, output):
+        from osgeo import ogr
+
+        folder = granule.split('IMG_DATA')[0]
+        source_gml = os.path.join(folder, 'QI_DATA', 'MSK_DETFOO_' + str(band) + '.gml')
+
+        source = ogr.Open(source_gml)
+
+        layerS = source.GetLayer()
+
+        s_srs = layerS.GetNextFeature().GetGeometryRef().GetSpatialReference().GetAuthorityCode("PROJCS")
+
+        os.system('ogr2ogr -F GML -s_srs EPSG:%s -t_srs EPSG:4326 %s %s'
+                  % (s_srs, source_gml.replace('.gml', '_wgs84.gml'), source_gml))
+
+        target = ogr.Open(source_gml.replace('.gml', '_wgs84.gml'))
+
+        layerT = target.GetLayer()
+
+        features = layerT.GetFeatureCount()
+        multi = ogr.Geometry(ogr.wkbMultiPolygon)
+
+        for f in range(0, features):
+            multi.AddGeometry(layerT.GetFeature(f).GetGeometryRef())
+
+        sidecar = granule.split('IMG_DATA/')[1].replace('.tif', '.wkt')
+
+        with open(os.path.join(output, sidecar), 'w') as wkt_sidecar:
+            wkt_sidecar.write(multi.UnionCascaded().ExportToWkt())
+            wkt_sidecar.flush()
+            wkt_sidecar.close()
+
+    def warp_granules(self, download_path, granules_path, bands, gdobj, t_epsg, options, rgb=True, mask=True):
         prod_file = self.open_file(download_path, self.products_list, 'r')
         granules_file = self.open_file(granules_path, self.processed_granules, 'w')
         for l in prod_file:
@@ -99,12 +129,17 @@ class SentinelSat(object):
                                    options=options)
                         granules_file.write(output_granule + '\n')
                         granules_file.flush()
+                        if mask:
+                            self.get_mask(f.replace('.jp2', '.tif'), b, granules_path)
                         if b == 'B08':
                             output_granule = output_granule.replace('B08', 'B8A')
                             gdobj.warp(inputf=f.replace('B08', 'B8A'), outputf=output_granule, t_srs=t_epsg,
                                        options=options)
                             granules_file.write(output_granule + '\n')
                             granules_file.flush()
+                            if mask:
+                                self.get_mask(f.replace('B08', 'B8A').replace('.jp2', '.tif'), b.replace('B08', 'B8A'),
+                                              granules_path)
                         continue
                 # Process RGB files
                 if rgb:
@@ -114,6 +149,8 @@ class SentinelSat(object):
                                    options=options)
                         granules_file.write(output_granule + '\n')
                         granules_file.flush()
+                        if mask:
+                            self.get_mask(f.replace('.jp2', '.tif'), b, granules_path)
                         continue
         prod_file.close()
         granules_file.close()
