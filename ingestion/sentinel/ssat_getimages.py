@@ -2,7 +2,7 @@
 
 import argparse
 
-from ingestion.scripts import SentinelSat
+from ingestion.scripts.sentinel import SentinelSat
 
 
 def main():

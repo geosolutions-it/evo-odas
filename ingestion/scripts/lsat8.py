@@ -4,7 +4,6 @@ import os
 
 from landsat.downloader import Downloader
 from landsat.search import Search
-
 from ingestion.utils.utils import initLogger
 
 # Make logger global here

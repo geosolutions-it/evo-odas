@@ -5,9 +5,9 @@ import json
 import os
 import sys
 
-from utils.utils import initLogger
+from ingestion.utils.utils import initLogger
 
-from ingestion.scripts import GDAL
+from ingestion.scripts.gdal import GDAL
 
 # Make logger global here
 logger = initLogger()

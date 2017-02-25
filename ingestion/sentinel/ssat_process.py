@@ -4,10 +4,10 @@ import argparse
 import os
 import sys
 
-from utils.utils import initLogger
+from ingestion.utils.utils import initLogger
 
-from ingestion.scripts import GDAL
-from ingestion.scripts import SentinelSat
+from ingestion.scripts.gdal import GDAL
+from ingestion.scripts.sentinel import SentinelSat
 
 # Make logger global here
 logger = initLogger()

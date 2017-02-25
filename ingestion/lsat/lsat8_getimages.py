@@ -7,10 +7,10 @@ import sys
 from collections import defaultdict
 
 from geoserver.catalog import Catalog
-from utils.db import DB
-from utils.utils import initLogger
+from ingestion.utils.db import DB
+from ingestion.utils.utils import initLogger
 
-from ingestion.scripts import Landsat
+from ingestion.scripts.lsat8 import Landsat
 
 # Make logger global here
 logger = initLogger()

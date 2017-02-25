@@ -7,9 +7,7 @@ import sys
 import time
 import zipfile
 from datetime import date, timedelta, datetime
-
 from sentinelsat.sentinel import SentinelAPI, get_coordinates, SentinelAPIError
-
 from ingestion.utils.utils import initLogger
 
 # Make logger global here

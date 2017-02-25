@@ -5,9 +5,8 @@ import os
 import sys
 
 from geoserver.catalog import Catalog
-from utils.utils import initLogger
-
-from ingestion.scripts import SentinelSat
+from ingestion.utils.utils import initLogger
+from ingestion.scripts.sentinel import SentinelSat
 
 # Make logger global here
 logger = initLogger()
