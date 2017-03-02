@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 max_conn=30
 expiration=60
 host='192.168.235.1'
