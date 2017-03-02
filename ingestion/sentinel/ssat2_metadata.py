@@ -1,58 +1,45 @@
+#!/usr/bin/env python
 import s2reader
 import sys
 import os
 import pg_simple
-import metadata_db_connection_params as db_config
+from jinja2 import Environment, FileSystemLoader
+import configs.metadata_db_connection_params as db_config
+import utils.metadata_utils as mu
+import utils.dictionary_utils as du
 
-def printMetadata(safe_pkg):
-    print "--------------------COLLECTION---------------------------------------------"
-    print "safe_pkg: '" + str(safe_pkg) + "'"
-    print "start_time: '" + str(safe_pkg.product_start_time) + "'"
-    print "stop_time: '" + str(safe_pkg.product_stop_time) + "'"
-    print "generation_time: '" + str(safe_pkg.generation_time) + "'"
-    print "_product_metadata: '" + str(safe_pkg._product_metadata) + "'"
-    print "_manifest_safe: '" + str(safe_pkg._manifest_safe) + "'"
-    print "product_metadata_path: '" + str(safe_pkg.product_metadata_path) + "'"
-    print "processing_level: '" + str(safe_pkg.processing_level) + "'"
-    print "footprint_char_length: '" + str(len(str(safe_pkg.footprint))) + "'"
-    print "----------------------------------------------------------------------------"
-    for granule in safe_pkg.granules:
-        print "--------------------GRANULE-----------------------------------------"
-        print "granule.granule_path: '" + granule.granule_path
-        print "footprint_char_length: '" + str(len(str(granule.footprint)))
-        print "srid: '" +granule.srid
-        print "metadata_path: '" + granule.metadata_path
-        print "cloud_percent: '" + str(granule.cloud_percent)
-        #print "cloudmask: '" + str(len(str(granule.cloudmask)))
-        print "nodata_mask: '" + str(granule.nodata_mask)
-        print "band_path: '" + str(granule.band_path)
+def collect_sentinel2_metadata(safe_pkg, granule):
+    return ({
+                # TO BE USED IN METADATA TEMPLATE and as SEARCH PARAMETERS
+                'timeStart':safe_pkg.product_start_time,
+                'timeEnd':safe_pkg.product_stop_time,
+                'eoParentIdentifier':"S2_MSI_L1C",# from Torsten velocity template see related mail in ML
+                'eoAcquisitionType':"NOMINAL",# from Torsten velocity template see related mail in ML
+                'eoOrbitNumber':safe_pkg.sensing_orbit_number,
+                'eoOrbitDirection':safe_pkg.sensing_orbit_direction,
+                'optCloudCover':granule.cloud_percent,
+                'eoCreationDate':safe_pkg.generation_time,
+                'eoArchivingCenter':"DPA",# from Torsten velocity template see related mail in ML
+                'eoProcessingMode':"DATA_DRIVEN",# from Torsten velocity template see related mail in ML
+                'footprint':str(granule.footprint)
+            },
+            {
+                # TO BE USED IN METADATA TEMPLATE
+                'eoProcessingLevel':safe_pkg.processing_level,
+                'eoSensorType':"OPTICAL",
+                'eoOrbitType':"LEO",
+                'eoProductType':safe_pkg.product_type,
+                'eoInstrument':safe_pkg.product_type[2:5],
+                'eoPlatform':safe_pkg.spacecraft_name[0:10],
+                'eoPlatformSerialIdentifier':safe_pkg.spacecraft_name[10:11]
+            })
 
-        print "--------------------------------------------------------------------"
+def generate_product_metadata(metadata_dict):
+    TEMPLATE_DIR = os.path.dirname(os.path.abspath(__file__)).join(('templates',))
+    j2_env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
+    return j2_env.get_template('sentinel2_metadata.xml').render(metadata_dict)
 
-def collectSentinel2Metadata(safe_pkg, granule):
-    return {
-        '"timeStart"':safe_pkg.product_start_time,
-        '"timeEnd"':safe_pkg.product_stop_time,
-        '"eoParentIdentifier"':"S2_MSI_L1C",# from Torsten velocity template see related mail in ML
-        '"eoAcquisitionType"':"NOMINAL",# from Torsten velocity template see related mail in ML
-        '"eoOrbitNumber"':safe_pkg.sensing_orbit_number,
-        '"eoOrbitDirection"':safe_pkg.sensing_orbit_direction,
-        '"optCloudCover"':granule.cloud_percent,
-        '"eoCreationDate"':safe_pkg.generation_time,
-        '"eoArchivingCenter"':"DPA",# from Torsten velocity template see related mail in ML
-        '"eoProcessingMode"':"DATA_DRIVEN",# from Torsten velocity template see related mail in ML
-    }
-    # TO BE USED IN METADATA TEMPLATE
-    #'"eoProcessingLevel"':safe_pkg.processing_level,
-    #'"footprint"':str(safe_pkg.footprint),
-    #'"eoSensorType"':"OPTICAL",
-    #'"eoOrbitType"':"LEO",
-    #'"eoProductType"':safe_pkg.product_type,
-    #'"eoInstrument"':safe_pkg.product_type[2:5],
-    #'"eoPlatform"':safe_pkg.spacecraft_name[0:10],
-    #'"eoPlatformSerialIdentifier"':safe_pkg.spacecraft_name[10:11]
-
-def persistProduct(dict_to_persist):
+def persist_product_search_params(dict_to_persist):
     pg_simple.config_pool(max_conn=db_config.max_conn,
                             expiration=db_config.expiration,
                             host=db_config.host,
@@ -64,10 +51,17 @@ def persistProduct(dict_to_persist):
         collection = db.fetchone('metadata.collection',
                                     fields=['"eoIdentifier"'],
                                     where=('"eoIdentifier" = %s', ["SENTINEL2"]))
+        if collection is None:
+            raise LookupError("ERROR: No related collection found!")
         dict_to_persist['"eoParentIdentifier"'] = collection.eoIdentifier
-        db.insert('metadata.product', data=dict_to_persist)
+        row = db.insert('metadata.product', data=dict_to_persist, returning='id')
         db.commit()
+    return row.id
 
+def persist_product_metadata(xmlDoc, id):
+    with pg_simple.PgSimple() as db:
+        db.insert('metadata.product_metadata', data={'metadata':xmlDoc, 'id':id})
+        db.commit()
 
 def main(args):
     if len(args) > 1:
@@ -75,10 +69,16 @@ def main(args):
     print "arg is: '" + args[0] + "'"
 
     with s2reader.open(args[0]) as safe_pkg:
-        #printMetadata(safe_pkg)
+        #mu.print_metadata(safe_pkg)
         for granule in safe_pkg.granules:
-            dict_to_persist=collectSentinel2Metadata(safe_pkg, granule)
-            persistProduct(dict_to_persist)
+            (search_params, other_metadata) = collect_sentinel2_metadata(safe_pkg, granule)
+            xmlDoc = generate_product_metadata(du.join(search_params, other_metadata))
+            try:
+                id = persist_product_search_params(du.wrap_keys_among_brackets(search_params))
+            except  LookupError:
+                print "ERROR: No related collection found!"
+                break
+            persist_product_metadata(xmlDoc, id)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
