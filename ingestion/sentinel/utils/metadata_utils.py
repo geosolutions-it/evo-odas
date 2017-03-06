@@ -2,7 +2,7 @@
 import s2reader
 
 def print_metadata(safe_pkg):
-    print "--------------------COLLECTION---------------------------------------------"
+    print "--------------------PRODUCT---------------------------------------------"
     print "safe_pkg: '" + str(safe_pkg) + "'"
     print "start_time: '" + str(safe_pkg.product_start_time) + "'"
     print "stop_time: '" + str(safe_pkg.product_stop_time) + "'"
@@ -16,6 +16,7 @@ def print_metadata(safe_pkg):
     for granule in safe_pkg.granules:
         print "--------------------GRANULE-----------------------------------------"
         print "granule.granule_path: '" + granule.granule_path
+        print "granule.granule_identifier: '" + granule.granule_identifier
         print "footprint_char_length: '" + str(len(str(granule.footprint)))
         print "srid: '" +granule.srid
         print "metadata_path: '" + granule.metadata_path
