@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import sys
 import s2reader
 import utils.metadata_utils as mu
