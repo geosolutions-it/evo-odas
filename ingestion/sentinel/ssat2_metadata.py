@@ -3,8 +3,8 @@ import s2reader
 import sys
 import utils.metadata as mu
 import utils.dictionary as du
-import utils.metadata_storage as mpu
-import utils.templates_renderer as tr
+from utils.templates_renderer import TemplatesResolver
+from utils.metadata_storage import PostgresStorage
 
 
 def collect_sentinel2_metadata(safe_pkg, granule):
@@ -35,9 +35,9 @@ def collect_sentinel2_metadata(safe_pkg, granule):
             },
             {
                 #TO BE USED IN THE PRODUCT ABSTRACT TEMPLATE
-                'PVI_IMG_PATH':granule.pvi_path,
                 'timeStart':safe_pkg.product_start_time,
                 'timeEnd':safe_pkg.product_stop_time,
+                'PRODUCT_NAME':granule.granule_identifier,
                 'ATOM_SEARCH_URL':"TBD",
                 'SRU_SEARCH_URL':"TBD",
                 'METADATA_SEARCH_URL':"TBD",
@@ -48,7 +48,8 @@ def main(args):
        raise Error("too many parameters!")
     print "+++++ Sentinel2 User Product filename: '" + args[0] + "'"
 
-    storage = mpu.PostgresStorage()
+    storage = PostgresStorage()
+    tr = TemplatesResolver()
 
     with s2reader.open(args[0]) as safe_pkg:
         #mu.print_metadata(safe_pkg)
@@ -63,6 +64,7 @@ def main(args):
             try:
                 search_params['htmlDescription'] = htmlAbstract
                 id = storage.persist_product_search_params(du.wrap_keys_among_brackets(search_params))
+                storage.persist_thumb(mu.create_thumb(granule.pvi_path), id)
             except  LookupError:
                 print "ERROR: No related collection found!"
                 break
