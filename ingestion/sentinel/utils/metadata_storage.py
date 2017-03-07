@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import pg_simple
 import configs.metadata_db_connection_params as db_config
+from psycopg2 import Binary
 
 class PostgresStorage:
     """Implementation of the EVO-ODAS Search Engine storage using the Postgres relational DBMS with PostGIS spatial extension"""
@@ -37,7 +38,12 @@ class PostgresStorage:
             db.commit()
         return row.id
 
-    def persist_product_metadata(self, xmlDoc, id):
+    def persist_product_metadata(self, xml_doc, id):
         with pg_simple.PgSimple() as db:
-            db.insert('metadata.product_metadata', data={'metadata':xmlDoc, 'id':id})
+            db.insert('metadata.product_metadata', data={'metadata':xml_doc, 'id':id})
+            db.commit()
+
+    def persist_thumb(self, thumb_blob, id):
+        with pg_simple.PgSimple() as db:
+            db.insert('metadata.product_thumb', data={'thumb':Binary(thumb_blob), 'id':id})
             db.commit()

@@ -1,5 +1,15 @@
 #!/usr/bin/env python
 import s2reader
+import configs.workflows_settings as ws
+from pgmagick import Blob, Image
+
+def create_thumb(pvi_img_path):
+    img = Image(Blob(open(pvi_img_path).read()))
+    img.scale(ws.thumb_size_x + 'x' + ws.thumb_size_y)
+    img.quality(ws.thumb_jpeg_compression_quality)
+    img.write(ws.working_directory + "tmp_thumb_resized.jpg")
+    blob = Blob(open(ws.working_directory + "tmp_thumb_resized.jpg").read())
+    return blob.data
 
 def print_metadata(safe_pkg):
     print "--------------------PRODUCT---------------------------------------------"
