@@ -37,10 +37,6 @@ def collect_sentinel2_metadata(safe_pkg, granule):
                 #TO BE USED IN THE PRODUCT ABSTRACT TEMPLATE
                 'timeStart':safe_pkg.product_start_time,
                 'timeEnd':safe_pkg.product_stop_time,
-                'PRODUCT_NAME':granule.granule_identifier,
-                'ATOM_SEARCH_URL':"TBD",
-                'SRU_SEARCH_URL':"TBD",
-                'METADATA_SEARCH_URL':"TBD",
             })
 
 def main(args):
