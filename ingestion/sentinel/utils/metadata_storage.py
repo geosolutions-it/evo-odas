@@ -18,8 +18,8 @@ class PostgresStorage:
     def check_granule_identifier(self, granule_identifier):
         with pg_simple.PgSimple() as db:
             collection = db.fetchone('metadata.product',
-                                        fields=['"name"'],
-                                        where=('"name" = %s', [granule_identifier]))
+                                        fields=['"eoIdentifier"'],
+                                        where=('"eoIdentifier" = %s', [granule_identifier]))
             if collection == None:
                 return False
             else:
