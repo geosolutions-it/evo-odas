@@ -12,5 +12,8 @@ class TemplatesResolver:
     def generate_product_abstract(self, product_abstract_metadata_dict):
         return self.j2_env.get_template('product_abstract.html').render(product_abstract_metadata_dict)
 
-    def generate_product_metadata(self, metadata_dict):
+    def generate_sentinel1_product_metadata(self, metadata_dict):
+        return self.j2_env.get_template('sentinel1_metadata.xml').render(metadata_dict)
+
+    def generate_sentinel2_product_metadata(self, metadata_dict):
         return self.j2_env.get_template('sentinel2_metadata.xml').render(metadata_dict)
