@@ -16,7 +16,6 @@ class PostgresStorage:
                                 password=db_config.password)
 
     def check_granule_identifier(self, granule_identifier):
-
         with pg_simple.PgSimple() as db:
             collection = db.fetchone('metadata.product',
                                         fields=['"name"'],
@@ -26,11 +25,11 @@ class PostgresStorage:
             else:
                 return True
 
-    def persist_product_search_params(self, dict_to_persist):
+    def persist_product_search_params(self, dict_to_persist, collection_name):
         with pg_simple.PgSimple() as db:
             collection = db.fetchone('metadata.collection',
                                         fields=['"eoIdentifier"'],
-                                        where=('"eoIdentifier" = %s', ["SENTINEL2"]))
+                                        where=('"eoIdentifier" = %s', [collection_name]))
             if collection is None:
                 raise LookupError("ERROR: No related collection found!")
             dict_to_persist['"eoParentIdentifier"'] = collection.eoIdentifier

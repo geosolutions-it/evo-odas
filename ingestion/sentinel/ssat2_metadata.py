@@ -56,10 +56,10 @@ def main(args):
                 continue
             (search_params, other_metadata, product_abstract_metadata) = collect_sentinel2_metadata(safe_pkg, granule)
             htmlAbstract = tr.generate_product_abstract(product_abstract_metadata)
-            xml_doc = tr.generate_product_metadata(du.join(search_params, other_metadata))
+            xml_doc = tr.generate_sentinel2_product_metadata(du.join(search_params, other_metadata))
             try:
                 search_params['htmlDescription'] = htmlAbstract
-                id = storage.persist_product_search_params(du.wrap_keys_among_brackets(search_params))
+                id = storage.persist_product_search_params(du.wrap_keys_among_brackets(search_params), "SENTINEL2")
                 storage.persist_thumb(mu.create_thumb(granule.pvi_path), id)
             except  LookupError:
                 print "ERROR: No related collection found!"
