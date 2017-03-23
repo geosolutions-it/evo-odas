@@ -2,8 +2,9 @@
 
 max_conn=30
 expiration=60
-host='192.168.235.1'
-port='9999'
-database='evo_odas'
-user='*******'
-password='******'
+host='localhost'
+port='5432'
+database='evo-odas'
+schema='public'
+user='postgres'
+password='postgres'
