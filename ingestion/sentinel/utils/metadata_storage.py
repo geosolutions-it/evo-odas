@@ -14,10 +14,11 @@ class PostgresStorage:
                                 database=db_config.database,
                                 user=db_config.user,
                                 password=db_config.password)
+        self.schema = db_config.schema
 
     def check_granule_identifier(self, granule_identifier):
         with pg_simple.PgSimple() as db:
-            collection = db.fetchone('metadata.product',
+            collection = db.fetchone(self.schema + '.product',
                                         fields=['"eoIdentifier"'],
                                         where=('"eoIdentifier" = %s', [granule_identifier]))
             if collection == None:
@@ -25,24 +26,29 @@ class PostgresStorage:
             else:
                 return True
 
+    def persist_collection(self, dict_to_persist):
+        with pg_simple.PgSimple() as db:
+            row = db.insert(self.schema + '.collection', data=dict_to_persist)
+            db.commit()
+
     def persist_product_search_params(self, dict_to_persist, collection_name):
         with pg_simple.PgSimple() as db:
-            collection = db.fetchone('metadata.collection',
+            collection = db.fetchone(self.schema + '.collection',
                                         fields=['"eoIdentifier"'],
                                         where=('"eoIdentifier" = %s', [collection_name]))
             if collection is None:
                 raise LookupError("ERROR: No related collection found!")
             dict_to_persist['"eoParentIdentifier"'] = collection.eoIdentifier
-            row = db.insert('metadata.product', data=dict_to_persist, returning='id')
+            row = db.insert(self.schema + '.product', data=dict_to_persist, returning='id')
             db.commit()
         return row.id
 
     def persist_product_metadata(self, xml_doc, id):
         with pg_simple.PgSimple() as db:
-            db.insert('metadata.product_metadata', data={'metadata':xml_doc, 'id':id})
+            db.insert(self.schema + '.product_metadata', data={'metadata':xml_doc, 'id':id})
             db.commit()
 
     def persist_thumb(self, thumb_blob, id):
         with pg_simple.PgSimple() as db:
-            db.insert('metadata.product_thumb', data={'thumb':Binary(thumb_blob), 'id':id})
+            db.insert(self.schema + '.product_thumb', data={'thumb':Binary(thumb_blob), 'id':id})
             db.commit()
