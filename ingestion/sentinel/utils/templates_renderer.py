@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import re
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, Template
 import os
+from templates import ogc_links_templates as lt
 
 class TemplatesResolver:
 
@@ -17,3 +18,14 @@ class TemplatesResolver:
 
     def generate_sentinel2_product_metadata(self, metadata_dict):
         return self.j2_env.get_template('sentinel2_metadata.xml').render(metadata_dict)
+
+    def generate_sentinel2_product_metadata(self, metadata_dict):
+        return self.j2_env.get_template('sentinel2_metadata.xml').render(metadata_dict)
+
+    def generate_ogc_links(self, href_params_dict):
+        ogc_links = []
+        for link in lt.links:
+            if lt.protocols.count(link[0]) > 0:
+                link[5] = str(Template(link[5]).render(href_params_dict))
+                ogc_links.append(link)
+        return ogc_links

@@ -52,3 +52,10 @@ class PostgresStorage:
         with pg_simple.PgSimple() as db:
             db.insert(self.schema + '.product_thumb', data={'thumb':Binary(thumb_blob), 'id':id})
             db.commit()
+
+    def persist_ogc_links(self, list, id):
+        with pg_simple.PgSimple() as db:
+            for dict in list:
+                dict['product_id'] = id
+                db.insert(self.schema + '.product_ogclink', data=dict)
+        db.commit()
