@@ -6,7 +6,7 @@
 * a collection of python scripts
 * used Jenkins pipelines as workflow engine
 
-**WORK IN PROGRES!**
+**WORK IN PROGRESS!**
 
 ### Scripts
 
