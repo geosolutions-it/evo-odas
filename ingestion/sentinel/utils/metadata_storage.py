@@ -33,11 +33,11 @@ class PostgresStorage:
             bbox = bbox[4:-1]
             bbox = bbox.replace(",", " ")
             bbox = bbox.split(" ", -1)
-            if bbox[0] > bbox[2]:
+            if float(bbox[0]) > float(bbox[2]):
                 tmp = bbox[0]
                 bbox[0] = bbox[2]
                 bbox[2] = tmp
-            if bbox[1] > bbox[3]:
+            if float(bbox[1]) > float(bbox[3]):
                 tmp = bbox[1]
                 bbox[1] = bbox[3]
                 bbox[3] = tmp
