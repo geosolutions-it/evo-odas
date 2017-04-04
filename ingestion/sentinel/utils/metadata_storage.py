@@ -26,6 +26,28 @@ class PostgresStorage:
             else:
                 return True
 
+    def get_product_OGC_BBOX(self, granule_identifier):
+        with pg_simple.PgSimple(nt_cursor=False) as db:
+            result = db.execute('SELECT ST_Extent(footprint::geometry) as ext FROM ' + self.schema + '.product WHERE "eoIdentifier" = %s', [granule_identifier])
+            bbox = result.fetchone()[0]
+            bbox = bbox[4:-1]
+            bbox = bbox.replace(",", " ")
+            bbox = bbox.split(" ", -1)
+            if bbox[0] > bbox[2]:
+                tmp = bbox[0]
+                bbox[0] = bbox[2]
+                bbox[2] = tmp
+            if bbox[1] > bbox[3]:
+                tmp = bbox[1]
+                bbox[1] = bbox[3]
+                bbox[3] = tmp
+            return bbox
+
+    def get_products_id(self):
+        with pg_simple.PgSimple() as db:
+            id_list = db.fetchall(self.schema + '.product', fields=['"id"', '"eoIdentifier"'])
+        return id_list
+
     def persist_collection(self, dict_to_persist):
         with pg_simple.PgSimple() as db:
             row = db.insert(self.schema + '.collection', data=dict_to_persist)

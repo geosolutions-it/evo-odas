@@ -42,5 +42,16 @@ def create_ogc_links_dict(list):
             'type':el[4],
             'href':el[5]
         })
-    print ogc_links
     return ogc_links
+
+def ogc_links_href_dict(ogc_bbox):
+    return{
+        "workspace":"sentinel2",
+        "layer":"sentinel2-TCI",
+        "WIDTH":"800",
+        "HEIGHT":"600",
+        "MINX":ogc_bbox[0],
+        "MINY":ogc_bbox[1],
+        "MAXX":ogc_bbox[2],
+        "MAXY":ogc_bbox[3]
+    }
