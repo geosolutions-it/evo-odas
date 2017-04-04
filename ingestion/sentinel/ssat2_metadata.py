@@ -33,7 +33,8 @@ def main(args):
                 print "ERROR: No related collection found!"
                 break
             storage.persist_product_metadata(xml_doc, id)
-            storage.persist_ogc_links(pgmap.create_ogc_links_dict(tr.generate_ogc_links({})), id)
+            ogc_bbox = storage.get_product_OGC_BBOX(granule.granule_identifier)
+            storage.persist_ogc_links(pgmap.create_ogc_links_dict(tr.generate_ogc_links(pgmap.ogc_links_href_dict(ogc_bbox))), id)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
