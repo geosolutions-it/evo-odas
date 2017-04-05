@@ -25,7 +25,8 @@ class TemplatesResolver:
     def generate_ogc_links(self, href_params_dict):
         ogc_links = []
         for link in lt.links:
+            link_out = list(link)
             if lt.protocols.count(link[0]) > 0:
-                link[5] = str(Template(link[5]).render(href_params_dict))
-                ogc_links.append(link)
+                link_out[5] = Template(link[5]).render(href_params_dict)
+                ogc_links.append(link_out)
         return ogc_links
