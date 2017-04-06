@@ -27,7 +27,7 @@ def update_OGC_links():
     tr = TemplatesResolver()
     for el in ps.get_products_id():
         ogc_bbox = ps.get_product_OGC_BBOX(el[1])
-        list = pgmap.create_ogc_links_dict(tr.generate_ogc_links(pgmap.ogc_links_href_dict(ogc_bbox)))
+        list = pgmap.create_ogc_links_dict(tr.generate_ogc_links(pgmap.ogc_links_href_dict(ogc_bbox, el[0])))
         ps.persist_ogc_links(list, el[0])
 
 def test_ingestion(pkg_path):
