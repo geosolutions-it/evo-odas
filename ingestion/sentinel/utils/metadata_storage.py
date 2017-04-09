@@ -67,12 +67,12 @@ class PostgresStorage:
 
     def persist_product_metadata(self, xml_doc, id):
         with pg_simple.PgSimple() as db:
-            db.insert(self.schema + '.product_metadata', data={'metadata':xml_doc, 'id':id})
+            db.insert(self.schema + '.product_metadata', data={'metadata':xml_doc, 'mid':id})
             db.commit()
 
     def persist_thumb(self, thumb_blob, id):
         with pg_simple.PgSimple() as db:
-            db.insert(self.schema + '.product_thumb', data={'thumb':Binary(thumb_blob), 'id':id})
+            db.insert(self.schema + '.product_thumb', data={'thumb':Binary(thumb_blob), 'tid':id})
             db.commit()
 
     def persist_ogc_links(self, list, id):
