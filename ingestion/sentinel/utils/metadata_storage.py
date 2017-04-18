@@ -2,6 +2,7 @@
 import pg_simple
 import configs.metadata_db_connection_params as db_config
 from psycopg2 import Binary
+import configs.workflows_settings as wf
 
 class PostgresStorage:
     """Implementation of the EVO-ODAS Search Engine storage using the Postgres relational DBMS with PostGIS spatial extension"""
@@ -80,4 +81,11 @@ class PostgresStorage:
             for dict in list:
                 dict['product_id'] = id
                 db.insert(self.schema + '.product_ogclink', data=dict)
+        db.commit()
+
+    def update_original_package_location(self, safe_pkg_name, tile_id):
+        with pg_simple.PgSimple() as db:
+            db.update(self.schema + '.product',
+                                    data={'"originalPackageLocation"':wf.original_package_location_path + safe_pkg_name},
+                                    where=('"eoIdentifier" = %s', [tile_id]))
         db.commit()
