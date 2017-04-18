@@ -2,6 +2,7 @@
 import sys
 import s2reader
 import utils.metadata as mu
+import os
 from utils.templates_renderer import TemplatesResolver
 import ssat2_metadata as s2
 from utils.metadata_storage import PostgresStorage
@@ -41,14 +42,28 @@ def test_bbox():
     ps = PostgresStorage()
     print ps.get_product_OGC_BBOX("S2A_OPER_MSI_L1C_TL_SGS__20160929T154211_A006640_T32TPP_N02.04")
 
+def update_original_package_location(folder):
+    ps = PostgresStorage()
+    safe_pkgs = os.listdir(folder)
+    print safe_pkgs
+    print "searching SAFE packages from the: '" + folder + "' directory"
+    for f in safe_pkgs:
+        print "------> " + f
+        if f.endswith(".SAFE"):
+            with s2reader.open(folder+f) as safe_pkg:
+                for g in safe_pkg.granules:
+                    ps.update_original_package_location(folder+f, g.granule_identifier);
+
+
 def main(args):
     pkg_path = "test_data/S2A_OPER_PRD_MSIL1C_PDMC_20160929T185902_R065_V20160929T102022_20160929T102344.SAFE"
     #test_product_abstract_generation(pkg_path)
     #test_metadata_read(pkg_path)
     #test_ingestion(pkg_path)
+    update_original_package_location("/home/fds/Desktop/test_folder/")
     #test_bbox()
     #test_ogc_links()
-    update_OGC_links()
+    #update_OGC_links()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
