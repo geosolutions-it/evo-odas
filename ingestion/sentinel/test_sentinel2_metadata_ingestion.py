@@ -52,7 +52,7 @@ def update_original_package_location(folder):
         if f.endswith(".SAFE"):
             with s2reader.open(folder+f) as safe_pkg:
                 for g in safe_pkg.granules:
-                    ps.update_original_package_location(folder+f, g.granule_identifier);
+                    ps.update_original_package_location(f, g.granule_identifier);
 
 
 def main(args):
