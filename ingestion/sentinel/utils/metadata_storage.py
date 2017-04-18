@@ -86,6 +86,6 @@ class PostgresStorage:
     def update_original_package_location(self, safe_pkg_name, tile_id):
         with pg_simple.PgSimple() as db:
             db.update(self.schema + '.product',
-                                    data={'"originalPackageLocation"':wf.original_package_location_path + safe_pkg_name},
+                                    data={'"originalPackageLocation"':wf.original_package_location_path + safe_pkg_name.replace("SAFE","zip")},
                                     where=('"eoIdentifier" = %s', [tile_id]))
         db.commit()
