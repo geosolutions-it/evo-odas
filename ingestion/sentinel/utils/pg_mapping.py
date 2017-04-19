@@ -14,7 +14,8 @@ def collect_sentinel2_metadata(safe_pkg, granule):
                 'eoArchivingCenter':"DPA",# from Torsten velocity template see related mail in ML
                 'eoProcessingMode':"DATA_DRIVEN",# from Torsten velocity template see related mail in ML
                 'footprint':str(granule.footprint),
-                'eoIdentifier':granule.granule_identifier
+                'eoIdentifier':granule.granule_identifier,
+                'originalPackageType':"application/zip"
             },
             {
                 # USED IN METADATA TEMPLATE ONLY
