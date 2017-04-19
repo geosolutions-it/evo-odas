@@ -18,7 +18,7 @@ links = [
 ["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "GetCapabilities", "application/xml", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/ows?service=WCS&version=2.0.1&request=GetCapabilities", "1"],
 #["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "DescribeCoverage", "application/xml", "http://...", "0+"],
 #["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "DescribeEOCoverageSet", "application/xml", "http://...", "01"],
-["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "GetCoverage", "image/tiff", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/ows?service=WCS&version=2.0.1&request=GetCoverage&coverageid={{WORKSPACE}}__{{LAYER}}&format=image%2Fgeotiff&scaleaxes=i({{WCS_SCALEFACTOR}}),j({{WCS_SCALEFACTOR}})&subset=long({{MINX}}%2C{{MAXX}})&subset=lat({{MINY}}%2C{{MAXY}})", "0+"],
+["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "GetCoverage", "image/tiff", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/ows?service=WCS&version=2.0.1&request=GetCoverage&coverageid={{WORKSPACE}}__{{LAYER}}&format=image%2Fgeotiff&scaleaxes=i({{WCS_SCALEFACTOR}}),j({{WCS_SCALEFACTOR}})&subset=Long({{MINX}}%2C{{MAXX}})&subset=Lat({{MINY}}%2C{{MAXY}})", "0+"],
 
 ["WFS", "http://www.opengis.net/spec/owc/1.0/req/atom/wfs", "GET", "GetCapabilities", "application/xml", "http://...", "1"],
 ["WFS", "http://www.opengis.net/spec/owc/1.0/req/atom/wfs", "GET", "DescribeFeature", "application/xml", "http://...", "0+"],
