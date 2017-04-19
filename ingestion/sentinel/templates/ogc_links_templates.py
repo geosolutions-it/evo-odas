@@ -10,7 +10,7 @@ protocols = ["WMS","WMTS","WCS"]
 
 links = [
 ["WMS","http://www.opengis.net/spec/owc/1.0/req/atom/wms", "GET", "GetCapabilities", "application/xml", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/ows?service=wms&version=1.3.0&request=GetCapabilities", "1"],
-["WMS","http://www.opengis.net/spec/owc/1.0/req/atom/wms", "GET", "GetMap", "image/jpeg", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image%2Fjpeg&STYLES&LAYERS={{WORKSPACE}}%3A{{LAYER}}&SRS=EPSG%3A4326&WIDTH={{WIDTH}}&HEIGHT={{HEIGHT}}&BBOX={{MINX}}%2C{{MINY}}%2C{{MAXX}}%2C{{MAXY}}", "0+"],
+["WMS","http://www.opengis.net/spec/owc/1.0/req/atom/wms", "GET", "GetMap", "image/jpeg", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/ows?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image%2Fjpeg&STYLES&LAYERS={{WORKSPACE}}%3A{{LAYER}}&SRS=EPSG%3A4326&WIDTH={{WIDTH}}&HEIGHT={{HEIGHT}}&BBOX={{MINX}}%2C{{MINY}}%2C{{MAXX}}%2C{{MAXY}}", "0+"],
 
 ["WMTS", "http://www.opengis.net/spec/owc/1.0/req/atom/wmts", "GET", "GetCapabilities", "application/xml", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/gwc/service/wmts?REQUEST=GetCapabilities", "1"],
 ["WMTS", "http://www.opengis.net/spec/owc/1.0/req/atom/wmts", "GET", "GetTile", "image/jpeg", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/gwc/service/wmts?layer=sentinel2%3ATCI&style&tilematrixset=EPSG%3A4326&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image%2Fjpeg&TileMatrix=EPSG%3A4326%3A13&TileCol=7780&TileRow=2248", "0+"],
