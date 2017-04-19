@@ -54,5 +54,6 @@ def ogc_links_href_dict(ogc_bbox, product_id):
         "MINX":ogc_bbox[0],
         "MINY":ogc_bbox[1],
         "MAXX":ogc_bbox[2],
-        "MAXY":ogc_bbox[3]
+        "MAXY":ogc_bbox[3],
+        "WCS_SCALEFACTOR":0.01
     }

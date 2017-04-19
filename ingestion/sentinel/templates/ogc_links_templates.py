@@ -6,7 +6,7 @@
 # 0+ = Zero or more occurrences
 
 # Takes into account only the listed protocols
-protocols = ["WMS","WMTS"]
+protocols = ["WMS","WMTS","WCS"]
 
 links = [
 ["WMS","http://www.opengis.net/spec/owc/1.0/req/atom/wms", "GET", "GetCapabilities", "application/xml", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/ows?service=wms&version=1.3.0&request=GetCapabilities", "1"],
@@ -18,7 +18,7 @@ links = [
 ["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "GetCapabilities", "application/xml", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/ows?service=WCS&version=2.0.1&request=GetCapabilities", "1"],
 #["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "DescribeCoverage", "application/xml", "http://...", "0+"],
 #["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "DescribeEOCoverageSet", "application/xml", "http://...", "01"],
-["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "GetCoverage", "image/tiff", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/ows?service=WCS&version=2.0&request=GetCoverage&coverageid={{WORKSPACE}}%3A{{LAYER}}&format=image%2Fgeotiff&BoundingBox={{MINX}}%2C{{MINY}}%2C{{MAXX}}%2C{{MAXY}}%2Curn:ogc:def:crs:epsg::4326", "0+"],
+["WCS", "http://www.opengis.net/spec/owc/1.0/req/atom/wcs", "GET", "GetCoverage", "image/tiff", "${BASE_URL}/{{WORKSPACE}}/{{LAYER}}/{{PRODUCT_ID}}/ows?service=WCS&version=2.0.1&request=GetCoverage&coverageid={{WORKSPACE}}__{{LAYER}}&format=image%2Fgeotiff&scaleaxes=i({{WCS_SCALEFACTOR}}}),j({{WCS_SCALEFACTOR}}}&subset=long({{MINX}}%2C{{MAXX}})&subset=lat({{MINY}}%2C{{MAXY}}))", "0+"],
 
 ["WFS", "http://www.opengis.net/spec/owc/1.0/req/atom/wfs", "GET", "GetCapabilities", "application/xml", "http://...", "1"],
 ["WFS", "http://www.opengis.net/spec/owc/1.0/req/atom/wfs", "GET", "DescribeFeature", "application/xml", "http://...", "0+"],
