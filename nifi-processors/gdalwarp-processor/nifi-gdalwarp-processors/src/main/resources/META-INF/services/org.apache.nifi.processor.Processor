@@ -13,4 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 it.geosolutions.nifi.processors.GdalWarpProcessor
-it.geosolutions.nifi.processors.GdalWarpProcessorNoInputRelation
+it.geosolutions.nifi.processors.MyProcessor
