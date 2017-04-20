@@ -1,7 +1,0 @@
-Jinja2==2.8.1
-psycopg2==2.6.2
-pg_simple==0.2.3
-pgmagick==0.5.7
-sentinelsat==0.9
-gsconfig==1.0.6
-s2reader==0.2
