@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 def collect_sentinel2_metadata(safe_pkg, granule):
+    print "***************" + str(granule.footprint)
     return ({
                 # USED IN METADATA TEMPLATE and as SEARCH PARAMETERS
                 'timeStart':safe_pkg.product_start_time,

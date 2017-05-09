@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 import sys
+import os
 import utils.metadata as mu
 import utils.dictionary as du
 from utils.templates_renderer import TemplatesResolver
 from utils.metadata_storage import PostgresStorage
-
+from utils.S1Reader import S1GDALReader
 
 def collect_sentinel1_metadata(metadata):
     return ({
@@ -17,8 +18,8 @@ def collect_sentinel1_metadata(metadata):
                 'eoProcessingMode':"DATA_DRIVEN",# from Torsten velocity template see related mail in ML
                 'optCloudCover':0,
                 'eoSwathIdentifier':metadata['SWATH'],
-                #'footprint':str(granule.footprint),
-                'name':metadata['NAME'],
+                'footprint':metadata['footprint'],
+                'eoIdentifier':metadata['NAME'],
             },
             {
                 # USED IN METADATA TEMPLATE ONLY
@@ -44,11 +45,16 @@ def main(args):
     storage = PostgresStorage()
     tr = TemplatesResolver()
 
+    granule_identifier = s1reader.get_metadata()['NAME']
+
     print "--- Processing granule: '" + granule_identifier + "'"
+    print "-------------------------------- fprnt is: " + s1reader.get_footprint()
     if(storage.check_granule_identifier(granule_identifier)):
         print "WARNING: Granule '" + granule_identifier + "' already exist, skipping it..."
         return
-    (search_params, other_metadata, product_abstract_metadata) = collect_sentinel1_metadata(s1reader.get_metadata())
+    s1metadata = s1reader.get_metadata()
+    s1metadata['footprint'] = s1reader.get_footprint()
+    (search_params, other_metadata, product_abstract_metadata) = collect_sentinel1_metadata(s1metadata)
     htmlAbstract = tr.generate_product_abstract(product_abstract_metadata)
     xml_doc = tr.generate_sentinel1_product_metadata(du.join(search_params, other_metadata))
     try:
