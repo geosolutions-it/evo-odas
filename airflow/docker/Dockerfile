@@ -99,6 +99,5 @@ RUN mkdir $EVOODAS_HOME \
 # Copy Configuration
 COPY airflow.cfg /usr/local/airflow/airflow.cfg
 
+VOLUME ["/var/data"]
 USER airflow
-WORKDIR ${AIRFLOW_HOME}
-ENTRYPOINT ["/entrypoint.sh"]
