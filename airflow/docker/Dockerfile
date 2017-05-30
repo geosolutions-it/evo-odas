@@ -96,6 +96,12 @@ RUN mkdir $EVOODAS_HOME \
     && cd s2reader \
     && easy_install .
 
+#
+# Install Utilities
+#
+RUN apt-get update -yqq \
+    && apt-get install -yqq openssh-client rsync
+
 # Copy Configuration
 COPY airflow.cfg /usr/local/airflow/airflow.cfg
 
