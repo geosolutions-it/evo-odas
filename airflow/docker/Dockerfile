@@ -100,7 +100,15 @@ RUN mkdir $EVOODAS_HOME \
 # Install Utilities
 #
 RUN apt-get update -yqq \
-    && apt-get install -yqq openssh-client rsync
+    && apt-get install -yqq openssh-client rsync \
+    && apt-get clean \
+    && rm -rf \
+        /var/lib/apt/lists/* \
+        /tmp/* \
+        /var/tmp/* \
+        /usr/share/man \
+        /usr/share/doc \
+        /usr/share/doc-base
 
 # Copy Configuration
 COPY airflow.cfg /usr/local/airflow/airflow.cfg
