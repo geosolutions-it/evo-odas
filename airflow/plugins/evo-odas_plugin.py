@@ -51,19 +51,29 @@ class RSYNCOperator(BaseOperator):
         self.working_dir = working_dir
         self.index = index
         log.info('--------------------RSYNCOperator Zip inspector------------')
+        super(RSYNCOperator, self).__init__(*args, **kwargs)
+
 
     def execute(self, context):
         task_instance = context['task_instance']
-        zip_filename = task_instance.xcom_pull(task_ids='download', key=xk.PACKAGE_LOCATION_XCOM_KEY + self.index)
 
-        splitted_filename = zip_filename.split('_')
-        filename_to_upload = ""
+        img_abs_path = task_instance.xcom_pull('gdal_warp_' + str(self.index), key=xk.WORKDIR_IMG_NAME_PREFIX_XCOM_KEY + str(self.index))
 
-        file_to_upload = self.working_dir + "/" + zip_filename
-        remote_file = self.remote_dir + "/granule_" + splitted_filename[2] + "_" + splitted_filename[4] + ".tif"
+        src_input_img_abs_path = task_instance.xcom_pull('zip_inspector', key=xk.IMAGE_ZIP_ABS_PATH_PREFIX_XCOM_KEY + str(self.index), dag_id="sentinel1")
+        splitted_src_input_img_filename = src_input_img_abs_path.split("/")
+        src_input_img_filename = splitted_src_input_img_filename[len(splitted_src_input_img_filename)-1]
 
-        bash_command = 'rsync -e "ssh -i ' + self.ssh_key_file + ' -o StrictHostKeyChecking=no" -avHPe -z "' + file_to_upload + '" ' + self.remote_usr + '@' + self.host + ':' + remote_file
-        bo = BashOperator(task_id='bash_operator_rsync_' + self.index, bash_command=bash_command)
+        splitted_filename = src_input_img_filename.split('-')
+        filename_to_upload = "/granule_" + splitted_filename[1] + "-" + splitted_filename[2] + "-" + splitted_filename[3] + "_" + splitted_filename[4].upper() + ".tiff"
+        
+        file_to_upload = img_abs_path
+        log.info("######## '" + file_to_upload + "'")
+        remote_file = self.remote_dir + "/" + filename_to_upload
+
+        task_instance.xcom_push(key=xk.GRANULE_TO_UPLOAD_PREFIX + str(self.index), value=filename_to_upload)
+
+        bash_command = 'rsync -avHPze "ssh -i ' + self.ssh_key_file + ' -o StrictHostKeyChecking=no" ' + file_to_upload + ' ' + self.remote_usr + '@' + self.host + ':' + remote_file
+        bo = BashOperator(task_id='bash_operator_rsync_' + str(self.index), bash_command=bash_command)
         bo.execute(context)
 
 class EVOODASPlugin(AirflowPlugin):

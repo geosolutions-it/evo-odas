@@ -40,7 +40,7 @@ main_dag = DAG(DAG_NAME, description='Sentinel1 ingestion flow',
 #download_task = DHUSDownloadOperator(task_id='dhus_download_task', dag=dag)
 
 mock_download_task = MockDownload(
-    downloaded_path='/home/fds/Desktop/evo-odas-tests/S1A_IW_SLC__1SDV_20170315T045130_20170315T045157_015698_019D58_845B.SAFE_TEST.zip',
+    downloaded_path='/usr/local/test-data/S1A_IW_SLC__1SDV_20170315T045130_20170315T045157_015698_019D58_845B.SAFE_TEST.zip',
     task_id='download',
     dag=main_dag
 )

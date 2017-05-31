@@ -14,20 +14,23 @@ log = logging.getLogger(__name__)
 class GSAddMosaicGranule(BaseOperator):
 
     @apply_defaults
-    def __init__(self, geoserver_rest_url, gs_user, gs_password, imagemosaic_storename_prefix, index, *args, **kwargs):
+    def __init__(self, geoserver_rest_url, gs_user, gs_password, imagemosaic_storename, mosaic_path, index, *args, **kwargs):
         self.catalog = Catalog(geoserver_rest_url, gs_user, gs_password)
-        self.store_name_prefix = imagemosaic_storename_prefix
+        self.store_name = imagemosaic_storename
+        self.mosaic_path = mosaic_path
         self.index = index
         log.info('--------------------GDAL_PLUGIN Add granule------------')
         super(GSAddMosaicGranule, self).__init__(*args, **kwargs)
 
     def execute(self, context):
         task_instance = context['task_instance']
-        granule_abs_path = task_instance.xcom_pull('gdal_warp_' + str(self.index), key=xk.WORKDIR_IMG_NAME_PREFIX_XCOM_KEY + str(self.index))
+        granule = task_instance.xcom_pull('rsync_' + str(self.index), key=xk.GRANULE_TO_UPLOAD_PREFIX + str(self.index))
         log.info("GSAddMosaicGranule params list")
-        log.info('Mosaic granule: %s', granule_abs_path)
-        store = self.catalog.get_store(self.store_name_prefix)
-        self.catalog.harvest_externalgranule('file://' + granule_abs_path, store)
+        log.info('Mosaic granule: %s', granule)
+        store = self.catalog.get_store(self.store_name)
+        granule = 'file://' + self.mosaic_path + '/' + granule
+        log.info(granule)
+        self.catalog.harvest_externalgranule(granule, store)
 
 class GDALPlugin(AirflowPlugin):
     name = "GeoServer_plugin"

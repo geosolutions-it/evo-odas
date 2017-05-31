@@ -1,6 +1,6 @@
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators import Pusher, BashOperator, GDALWarpOperator, GDALAddoOperator, GSAddMosaicGranule
+from airflow.operators import Pusher, BashOperator, GDALWarpOperator, GDALAddoOperator, GSAddMosaicGranule, RSYNCOperator
 from random import randint
 import logging
 
@@ -31,19 +31,14 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
   RESAMPLING_METHOD = 'average'
   MAX_OVERVIEW_LEVEL = 512
 
-  SSH_KEY_FILE = '/home/fds/.ssh/OWS12.pem'
-  REMOTE_USR = 'ec2-user'
-  HOST = 'geoserver.cloudsdi.geo-solutions.it'
-  REMOTE_DIR = '/home/ec2-user'
-
-  GEOSERVER_REST_URL = 'http://localhost:8080/geoserver/rest'
+  GEOSERVER_REST_URL = 'http://cloudsdi.geo-solutions.it/geoserver/rest'
   GS_USER = 'admin'
-  GS_PASSWORD = 'geoserver'
-  STORENAME = 'mosaic_sentinel1_test'
+  GS_PASSWORD = 'password!'
+  STORENAME = 'sentinel1_slc'
 
-  HOST = 'cloudsdi-geo-solutions.it'
-  REMOTE_USR = 'ec2-user'
-  SSH_KEY_FILE = '/home/.ssh/id_rsa'
+  HOST = 'cloudsdi.geo-solutions.it'
+  REMOTE_USR = 'airflow'
+  SSH_KEY_FILE = '/root/.ssh/id_rsa'
   MOSAIC_PATH = '/efs/geoserver_data/coverages/sentinel/sentinel1/slc'
   WORKING_DIR = '/tmp'
 
@@ -78,14 +73,17 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
         ssh_key_file = SSH_KEY_FILE,
         remote_dir = MOSAIC_PATH,
         working_dir = WORKING_DIR,
-        index = i
+        index = i,
+        task_id = 'rsync_' + str(i),
+        dag = dag
     )
 
     add_granule = GSAddMosaicGranule(
         geoserver_rest_url = GEOSERVER_REST_URL,
         gs_user = GS_USER,
         gs_password = GS_PASSWORD,
-        imagemosaic_storename_prefix = STORENAME,
+        imagemosaic_storename = STORENAME,
+        mosaic_path = MOSAIC_PATH,
         index = i,
         task_id = 'gs_add_mosaic_granule' + str(i),
         dag = dag
