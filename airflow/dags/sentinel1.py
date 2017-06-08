@@ -1,6 +1,6 @@
 from airflow import DAG
 from datetime import datetime
-from subdag_factory import gdal_processing_sub_dag
+from s1_slc_subdag_factory import gdal_processing_sub_dag
 from airflow.operators import ZipInspector, MockDownload, SubDagOperator, DHUSSearchOperator
 
 default_args = {

@@ -34,7 +34,7 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
     start_date=start_date,
   )
 
-  for i in range(1, 6):
+  for i in range(1, 7):
     warp = GDALWarpOperator(
         target_srs = TARGET_SRS,
         tile_size = TILE_SIZE,
