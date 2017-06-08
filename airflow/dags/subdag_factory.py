@@ -7,20 +7,6 @@ import logging
 log = logging.getLogger(__name__)
 
 # Dag is returned by a factory method
-def pushers_sub_dag(parent_dag_name, child_dag_name, start_date, schedule_interval):
-  dag = DAG(
-    '%s.%s' % (parent_dag_name, child_dag_name),
-    schedule_interval=schedule_interval,
-    start_date=start_date,
-  )
-
-  for i in range(1, randint(1,10)):
-    Pusher(a_msg='message number 1', task_id='task_push'+str(i), dag=dag)
-    log.info('-----------------------------------------task_push'+str(i))
-
-  return dag
-
-
 def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedule_interval):
 
   TARGET_SRS = 'EPSG:4326'
