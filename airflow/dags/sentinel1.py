@@ -1,7 +1,7 @@
 from airflow import DAG
 from datetime import datetime
 from subdag_factory import gdal_processing_sub_dag
-from airflow.operators import ZipInspector, MockDownload, SubDagOperator
+from airflow.operators import ZipInspector, MockDownload, SubDagOperator, DHUSSearchOperator
 
 default_args = {
     'start_date': datetime(2017, 1, 1),
@@ -35,9 +35,9 @@ main_dag = DAG(DAG_NAME, description='Sentinel1 ingestion flow',
                           start_date=DATE,
                           catchup=False)
 
-#search_task = DHUSSearchOperator(task_id='dhus_search_task', dag=dag)
+search_task = DHUSSearchOperator(task_id='dhus_search_task', dag=dag)
 
-#download_task = DHUSDownloadOperator(task_id='dhus_download_task', dag=dag)
+download_task = DHUSDownloadOperator(task_id='dhus_download_task', dag=dag)
 
 mock_download_task = MockDownload(
     downloaded_path='/usr/local/test-data/S1A_IW_SLC__1SDV_20170315T045130_20170315T045157_015698_019D58_845B.SAFE_TEST.zip',
@@ -57,5 +57,5 @@ sentinel1_gdal_task = SubDagOperator(
     dag=main_dag
 )
 
-#search_task >> download_task >> zip_task >> sentinel1_gdal_task >> add_granule_task
-mock_download_task >> zip_task >> sentinel1_gdal_task
+search_task >> download_task >> zip_task >> sentinel1_gdal_task >> add_granule_task
+#mock_download_task >> zip_task >> sentinel1_gdal_task
