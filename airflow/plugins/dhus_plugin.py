@@ -116,19 +116,12 @@ class DHUSDownloadOperator(BaseOperator):
             
         # retrieving products from previous search step
         self.products = context['task_instance'].xcom_pull('dhus_search_task', key='searched_products')
+	print('type: {}'.format(self.products))
+        log.info("Retrieved {} products:\n{}".format(len(self.products), pprint.pprint(self.products)))
 
         if not self.products or len(self.products) == 0:
             log.info('no products to process')
             return True
-            
-        # convert to Pandas DataFrame
-        products_df = SentinelAPI.to_dataframe(self.products)
-
-        # sort and limit to first 5 sorted products
-        products_df_sorted = products_df.sort_values(['ingestiondate'], ascending=[True])
-        products_df_sorted = products_df_sorted.head(self.download_max)
-
-        log.info("Retrieved {} products:\n{}".format(len(self.products), pprint.pprint(self.products)))
     
         if len(self.product_ids) > self.download_max:
             log.warn("Found products ({}) exceeds download limit ({})".format(len(self.product_ids), self.download_max))
@@ -136,15 +129,18 @@ class DHUSDownloadOperator(BaseOperator):
         log.info('Downloading up to {} products..'.format(self.download_max))
         product_downloaded = {}
         api = SentinelAPI(self.dhus_user, self.dhus_pass, self.dhus_url)
-        for product_id in self.product_ids:
+        for product_id in self.products.keys():
             if len(product_downloaded) >= self.download_max:
                 break;
             log.info('Download Product ID {}'.format(product_id))
-            path, product_info = api.download(product_id, directory_path=self.download_dir);
+            downloaded = api.download(product_id, directory_path=self.download_dir);
+            path = downloaded['path']
             # TODO check if file in 'path' is binary.
             # It might is an XML file containing an error such as 
             # "Maximum number of 2 concurrent flows achieved by the user "xyz""
-            product_downloaded[path] = product_info;
+            # Check MD5
+            # If file already downloaded move on to next one?
+            product_downloaded[path] = downloaded;
         
         log.debug("Downloaded {} products:\n{}".format(len(product_downloaded),pp.pprint(product_downloaded)))
         context['task_instance'].xcom_push(key='downloaded_products', value=product_downloaded)

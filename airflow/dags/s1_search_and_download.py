@@ -36,7 +36,7 @@ default_args = {
     'geojson_bbox': '/var/data/regions/middle-east.geojson',
     'startdate': (datetime.today() - timedelta(days=4)).isoformat() + 'Z',
     'enddate': datetime.now().isoformat() + 'Z',
-    'platformname': 'Sentinel-2',
+    'platformname': 'Sentinel-1',
     #
     # ------------------------------------------------
     # Sentinel 1 Products

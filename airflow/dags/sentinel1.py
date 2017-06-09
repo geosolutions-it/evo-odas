@@ -25,7 +25,7 @@ default_args = {
     'identifier': 'S2A_MSIL1C_20170510T103031_N0205_R108_T32UPV_20170510T103025'
 }
 
-INTERVAL = '* * * * *'
+INTERVAL = '0 12 * * *'
 DATE = datetime(2017, 5, 4)
 DAG_NAME = 'sentinel1'
 SUBDAG_NAME = 'sentinel1_gdal'
