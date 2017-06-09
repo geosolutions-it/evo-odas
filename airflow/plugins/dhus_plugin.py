@@ -114,21 +114,21 @@ class DHUSDownloadOperator(BaseOperator):
         if self.product_ids == None:
             self.product_ids = []
             
-            # retrieving products from previous search step
-            self.products = context['task_instance'].xcom_pull('dhus_search_task', key='searched_products')
-            
-            if not self.products or len(self.products) == 0:
-                log.info('no products to process')
-                return True
-            
-            # convert to Pandas DataFrame
-            products_df = SentinelAPI.to_dataframe(self.products)
+        # retrieving products from previous search step
+        self.products = context['task_instance'].xcom_pull('dhus_search_task', key='searched_products')
 
-            # sort and limit to first 5 sorted products
-            products_df_sorted = products_df.sort_values(['ingestiondate'], ascending=[True])
-            products_df_sorted = products_df_sorted.head(self.download_max)
+        if not self.products or len(self.products) == 0:
+            log.info('no products to process')
+            return True
+            
+        # convert to Pandas DataFrame
+        products_df = SentinelAPI.to_dataframe(self.products)
 
-            log.info("Retrieved {} products:\n{}".format(len(self.products), pprint.pprint(self.products)))
+        # sort and limit to first 5 sorted products
+        products_df_sorted = products_df.sort_values(['ingestiondate'], ascending=[True])
+        products_df_sorted = products_df_sorted.head(self.download_max)
+
+        log.info("Retrieved {} products:\n{}".format(len(self.products), pprint.pprint(self.products)))
     
         if len(self.product_ids) > self.download_max:
             log.warn("Found products ({}) exceeds download limit ({})".format(len(self.product_ids), self.download_max))
