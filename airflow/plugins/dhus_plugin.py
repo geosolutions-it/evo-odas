@@ -109,7 +109,7 @@ class DHUSDownloadOperator(BaseOperator):
         log.info('Max Downloads: %s', self.download_max)
         log.info('Download Directory: %s', self.download_dir)
 
-        print("Execute DHUS Download.. ")
+        log.info("Execute DHUS Download.. ")
         
         if self.product_ids == None:
             self.product_ids = []
@@ -127,26 +127,21 @@ class DHUSDownloadOperator(BaseOperator):
             # sort and limit to first 5 sorted products
             products_df_sorted = products_df.sort_values(['ingestiondate'], ascending=[True])
             products_df_sorted = products_df_sorted.head(self.download_max)
-            
-            product_summary=""
-            for key, product in products.items():
-                self.product_ids.append(product['id'])
-                product_summary+='{}|{}|{}\n'.format(product['id'],key,product['summary'])
-                #log.info('Product: {}\n{} | {}'.format(product['id'],key,product['summary']))
-                #log.debug("{}".format( pp.pprint(product)));
-            log.info("Retrieved {} products:\n{}".format(len(self.products),product_summary))
+
+            log.info("Retrieved {} products:\n{}".format(len(self.products), pprint.pprint(self.products)))
     
         if len(self.product_ids) > self.download_max:
             log.warn("Found products ({}) exceeds download limit ({})".format(len(self.product_ids), self.download_max))
     
-        log.info('Downloading {} products..'.format(self.download_max))
+        log.info('Downloading up to {} products..'.format(self.download_max))
         product_downloaded = {}
         api = SentinelAPI(self.dhus_user, self.dhus_pass, self.dhus_url)
         for product_id in self.product_ids:
             if len(product_downloaded) >= self.download_max:
-                break;            
+                break;
+            log.info('Download Product ID {}'.format(product_id))
             path, product_info = api.download(product_id, directory_path=self.download_dir);
-            # TODO check if file in 'path' is binary. 
+            # TODO check if file in 'path' is binary.
             # It might is an XML file containing an error such as 
             # "Maximum number of 2 concurrent flows achieved by the user "xyz""
             product_downloaded[path] = product_info;
