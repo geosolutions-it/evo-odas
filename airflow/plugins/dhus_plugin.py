@@ -6,7 +6,7 @@ from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 
-from sentinelsat.sentinel import SentinelAPI, get_coordinates
+from sentinelsat.sentinel import SentinelAPI, read_geojson, geojson_to_wkt
 
 log = logging.getLogger(__name__)
 pp = pprint.PrettyPrinter(indent=2)
@@ -17,8 +17,7 @@ class DHUSSearchOperator(BaseOperator):
     def __init__(self, 
             dhus_url,
             dhus_user,
-            dhus_pass, 
-            download_dir, 
+            dhus_pass,
             geojson_bbox, 
             startdate, 
             enddate,
@@ -55,21 +54,26 @@ class DHUSSearchOperator(BaseOperator):
 
         # search products
         api = SentinelAPI(self.dhus_user, self.dhus_pass, self.dhus_url)
+        try:
+            footprint = geojson_to_wkt(read_geojson(self.geojson_bbox))
+        except:
+            log.error('Cannot open GeoJSON file: {}'.format(self.geojson_bbox))
+            return False
+
         products = api.query(
-            get_coordinates(self.geojson_bbox),
+            footprint,
             initial_date=self.startdate,
             end_date=self.enddate,
             platformname=self.platformname,
-            identifier=self.identifier
         )
         
-        product_summary=""
-        for key, product in SentinelAPI.to_dict(products).items():
-            product_summary+='{}|{}|{}\n'.format(product['id'],key,product['summary'])
+        #product_summary=""
+        #for key, product in products.items():
+            #product_summary+='{}|{}|{}\n'.format(product['key'],key,product['summary'])
             #log.info('Product: {}\n{} | {}'.format(product['id'],key,product['summary']))
             #log.debug("{}".format( pp.pprint(product)));        
-        log.info("Found {} products:\n{}".format(len(products),product_summary))
-
+        log.info("Found {} products:\n{}".format(len(products),pprint.pprint(products)))
+        log.debug('Pushing to XCom: {}'.format(products))
         context['task_instance'].xcom_push(key='searched_products', value=products)
         return True
     
@@ -113,11 +117,9 @@ class DHUSDownloadOperator(BaseOperator):
             # retrieving products from previous search step
             self.products = context['task_instance'].xcom_pull('dhus_search_task', key='searched_products')
             
-            if len(self.products) == 0: 
+            if not self.products or len(self.products) == 0:
+                log.info('no products to process')
                 return True
-            
-            # convert to dict
-            products_dict = SentinelAPI.to_dict(self.products);
             
             # convert to Pandas DataFrame
             products_df = SentinelAPI.to_dataframe(self.products)
@@ -127,7 +129,7 @@ class DHUSDownloadOperator(BaseOperator):
             products_df_sorted = products_df_sorted.head(self.download_max)
             
             product_summary=""
-            for key, product in products_dict.items():
+            for key, product in products.items():
                 self.product_ids.append(product['id'])
                 product_summary+='{}|{}|{}\n'.format(product['id'],key,product['summary'])
                 #log.info('Product: {}\n{} | {}'.format(product['id'],key,product['summary']))
