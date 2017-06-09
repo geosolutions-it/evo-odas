@@ -1,7 +1,5 @@
 from airflow.models import DAG
-from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators import BashOperator, GDALWarpOperator, GDALAddoOperator, GSAddMosaicGranule, RSYNCOperator
-from random import randint
 import logging
 
 log = logging.getLogger(__name__)
