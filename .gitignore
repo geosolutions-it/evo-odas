@@ -5,6 +5,9 @@ airflow.db
 airflow.cfg
 unittests.cfg
 
+## VIM
+.*.swp
+
 ## PYTHON
 
 # Byte-compiled / optimized / DLL files
