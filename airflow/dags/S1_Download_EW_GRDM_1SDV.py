@@ -1,3 +1,4 @@
+import os
 from airflow import DAG
 from airflow.operators import DHUSSearchOperator, DHUSDownloadOperator
 
@@ -27,16 +28,18 @@ default_args = {
     #
     #dhus_url = 'https://dehub.dlr.de/dhus'
     'dhus_url': 'https://scihub.copernicus.eu/dhus',
-    'dhus_user': '*******',
-    'dhus_pass': '*******',
-    'download_dir': '/var/data/download',
+    'dhus_user': '******',
+    'dhus_pass': '******',
+    'download_base_dir': '/var/data/download/',
     'download_max': '1',
     #'geojson_bbox': '/var/data/regions/munich.geojson',
     #'geojson_bbox': '/var/data/regions/germany.geojson',
-    'geojson_bbox': '/var/data/regions/middle-east.geojson',
-    'startdate': (datetime.today() - timedelta(days=4)).isoformat() + 'Z',
+    'geojson_bbox': '/var/data/regions/oceans.geojson',
+    'startdate': (datetime.today() - timedelta(days=365)).isoformat() + 'Z',
     'enddate': datetime.now().isoformat() + 'Z',
     'platformname': 'Sentinel-1',
+    #'producttype' : 'GRD',
+    'filename': 'S1?_EW_GRDM_1SDV*',
     #
     # ------------------------------------------------
     # Sentinel 1 Products
@@ -66,8 +69,10 @@ default_args = {
     #
 }
 
+download_dir = os.path.join(default_args['download_base_dir'], default_args['platformname'], 'GRD')
+
 # DAG definition
-dag = DAG('s1_search_and_download', description='DAG for searching, filtering and downloading Sentinel data from DHUS server',
+dag = DAG('S1_Download_EW_GRDM_1SDV', description='DAG for searching, filtering and downloading Sentinel data from DHUS server',
           default_args=default_args,
           dagrun_timeout=timedelta(hours=1),
           #schedule_interval=timedelta(minutes=1),
@@ -79,6 +84,6 @@ dag = DAG('s1_search_and_download', description='DAG for searching, filtering an
 search_task = DHUSSearchOperator(task_id='dhus_search_task', dag=dag)
 
 # DHUS Download Task Operator
-download_task = DHUSDownloadOperator(task_id='dhus_download_task', dag=dag)
+download_task = DHUSDownloadOperator(task_id='dhus_download_task', dag=dag, download_dir=download_dir)
 
 search_task >> download_task 

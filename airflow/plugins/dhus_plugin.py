@@ -22,7 +22,8 @@ class DHUSSearchOperator(BaseOperator):
             startdate, 
             enddate,
             platformname=None,
-            identifier=None,
+            producttype=None,
+            filename=None,
             *args, **kwargs):
         self.dhus_url = dhus_url
         self.dhus_user = dhus_user
@@ -31,7 +32,8 @@ class DHUSSearchOperator(BaseOperator):
         self.startdate = str(startdate)
         self.enddate = str(enddate)
         self.platformname = platformname
-        self.identifier = identifier
+        self.producttype = producttype
+        self.filename = filename
 
         print("Init DHUS Search.. ")
         
@@ -48,7 +50,8 @@ class DHUSSearchOperator(BaseOperator):
         log.info('End Date: %s', self.enddate)
         log.info('GeoJSON: %s', self.geojson_bbox)
         log.info('Platform: %s', self.platformname)
-        log.info('Identifier: %s', self.identifier)
+        log.info('Product Type: %s', self.producttype)
+        log.info('Filename: %s', self.filename)
         
         print("Execute DHUS Search.. ")
 
@@ -65,6 +68,7 @@ class DHUSSearchOperator(BaseOperator):
             initial_date=self.startdate,
             end_date=self.enddate,
             platformname=self.platformname,
+            filename=self.filename
         )
         
         #product_summary=""
