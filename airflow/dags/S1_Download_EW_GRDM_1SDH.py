@@ -28,8 +28,6 @@ default_args = {
     #
     #dhus_url = 'https://dehub.dlr.de/dhus'
     'dhus_url': 'https://scihub.copernicus.eu/dhus',
-    'dhus_user': '******',
-    'dhus_pass': '******',
     'download_base_dir': '/var/data/download/',
     'download_max': '1',
     #'geojson_bbox': '/var/data/regions/munich.geojson',

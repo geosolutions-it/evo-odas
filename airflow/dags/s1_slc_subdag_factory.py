@@ -17,7 +17,6 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
 
   GEOSERVER_REST_URL = 'http://cloudsdi.geo-solutions.it/geoserver/rest'
   GS_USER = 'admin'
-  GS_PASSWORD = '******'
   STORENAME = 'sentinel1_slc'
 
   HOST = 'cloudsdi.geo-solutions.it'

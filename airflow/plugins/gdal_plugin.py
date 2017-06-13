@@ -23,7 +23,9 @@ class GDALWarpOperator(BaseOperator):
     def execute(self, context):
         log.info('--------------------GDAL_PLUGIN Warp running------------')
         task_instance = context['task_instance']
-        input_img_abs_path = task_instance.xcom_pull('zip_inspector', key=xk.IMAGE_ZIP_ABS_PATH_PREFIX_XCOM_KEY + str(self.index), dag_id="sentinel1")
+        parent_dag_id = context['dag'].dag_id
+        log.info("Parent DAG: %s", parent_dag_id)
+        input_img_abs_path = task_instance.xcom_pull('zip_inspector', key=xk.IMAGE_ZIP_ABS_PATH_PREFIX_XCOM_KEY + str(self.index), dag_id=parent_dag_id)
         output_img_filename = 'image_' + str(self.index) + '.tiff'
         log.info("GDAL Warp Operator params list")
         log.info('Target SRS: %s', self.target_srs)
