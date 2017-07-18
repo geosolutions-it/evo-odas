@@ -43,10 +43,13 @@ class GDALWarpOperator(BaseOperator):
 class GDALAddoOperator(BaseOperator):
 
     @apply_defaults
-    def __init__(self, resampling_method, max_overview_level, index, *args, **kwargs):
+    def __init__(self, resampling_method, max_overview_level, index, compress_overview = None, photometric_overview = None, interleave_overview = None, *args, **kwargs):
         self.resampling_method = resampling_method
         self.max_overview_level = max_overview_level
         self.index = index
+        self.compress_overview = ' --config COMPRESS_OVERVIEW ' + compress_overview +' ' if compress_overview else ' '
+        self.photometric_overview = ' --config PHOTOMETRIC_OVERVIEW ' + photometric_overview +' ' if photometric_overview else ' '
+        self.interleave_overview = ' --config INTERLEAVE_OVERVIEW ' + interleave_overview +' ' if interleave_overview else ' '
         level = 2
         levels = ''
         while(level <= int(self.max_overview_level)):
@@ -63,7 +66,10 @@ class GDALAddoOperator(BaseOperator):
         log.info("GDAL Warp Addo params list")
         log.info('Resampling method: %s', self.resampling_method)
         log.info('Max overview level: %s', self.max_overview_level)
-        gdaladdo_command = 'gdaladdo -r ' + self.resampling_method + ' ' + img_abs_path + ' ' + self.levels
+        log.info('COMPRESS_OVERVIEW: %s', self.compress_overview)
+        log.info('PHOTOMETRIC_OVERVIEW: %s', self.photometric_overview)
+        log.info('INTERLEAVE_OVERVIEW: %s', self.interleave_overview)
+        gdaladdo_command = 'gdaladdo -r ' + self.resampling_method + ' ' + self.compress_overview + self.photometric_overview+ self.interleave_overview + img_abs_path + ' ' + self.levels
         log.info('The complete GDAL addo command is: %s', gdaladdo_command)
         bo = BashOperator(task_id='bash_operator_addo_', bash_command=gdaladdo_command)
         bo.execute(context)
