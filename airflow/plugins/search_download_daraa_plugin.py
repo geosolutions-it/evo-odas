@@ -10,6 +10,7 @@ from airflow.operators import BaseOperator
 from airflow.operators import BashOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
+import os
 
 log = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ class Landsat8DownloadOperator(BaseOperator):
         create_dir.execute(context)
         counter = 1
         while counter <= self.number_of_bands:
-           urllib.urlretrieve(scene_url[2].replace("index.html",scene_url[0]+"_B"+str(counter)+".TIF"),self.download_dir+scene_url[1]+"/"+scene_url[0]+'_B'+str(counter)+'.TIF')
+           urllib.urlretrieve(scene_url[2].replace("index.html",scene_url[0]+"_B"+str(counter)+".TIF"),os.path.join(self.download_dir+scene_url[1],scene_url[0]+'_B'+str(counter)+'.TIF'))
            counter+=1
         context['task_instance'].xcom_push(key='scene_fullpath', value=self.download_dir+scene_url[1])
         return True
