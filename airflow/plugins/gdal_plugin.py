@@ -124,4 +124,4 @@ class GDALTranslateOperator(BaseOperator):
 
 class GDALPlugin(AirflowPlugin):
     name = "GDAL_plugin"
-    operators = [GDALWarpOperator, GDALAddoOperator]
+    operators = [GDALWarpOperator, GDALAddoOperator, GDALTranslateOperator]
