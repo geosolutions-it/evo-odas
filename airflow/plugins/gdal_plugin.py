@@ -68,6 +68,53 @@ class GDALAddoOperator(BaseOperator):
         bo = BashOperator(task_id='bash_operator_addo_', bash_command=gdaladdo_command)
         bo.execute(context)
 
+class GDALTranslateOperator(BaseOperator):
+
+    @apply_defaults
+    def __init__(self, 
+            tiled = None, 
+            working_dir = None,
+            blockx_size = None,
+            blocky_size = None,
+            compress = None,
+            photometric = None,
+            ot = None, of = None,
+            b = None, mask = None,
+            outsize = None,
+            scale = None,
+            *args, **kwargs):
+
+        self.working_dir = working_dir
+ 
+        self.tiled = ' -co "TILED=' + tiled +'" ' if tiled else ' '
+        self.blockx_size = ' -co "BLOCKXSIZE=' + blockx_size + '" ' if blockx_size else ' '
+        self.blocky_size = ' -co "BLOCKYSIZE=' + blocky_size + '" ' if blocky_size else ' '
+        self.compress = ' -co "COMPRESS=' + compress + '"' if compress else ' '
+        self.photometric = ' -co "PHOTOMETRIC=' + photometric + '" ' if photometric else ' '
+
+        self.ot = ' -ot ' + str(ot) if ot else ''
+        self.of = ' -of ' + str(of) if of else ''
+        self.b = ' -b ' + str(b) if b else ''
+        self.mask = '-mask ' + str(mask) if mask else ''
+        self.outsize = '-outsize ' + str(outsize) if outsize else ''
+        self.scale = ' -scale ' + str(scale) if scale else ''
+
+        log.info('--------------------GDAL_PLUGIN Translate initiated------------')
+        super(GDALTranslateOperator, self).__init__(*args, **kwargs)
+
+    def execute(self, context):
+        log.info('--------------------GDAL_PLUGIN Translate running------------')
+        task_instance = context['task_instance']
+        log.info("GDAL Translate Operator params list")
+        log.info('Working dir: %s', self.working_dir)
+        scene_fullpath = context['task_instance'].xcom_pull('download_task', key='scene_fullpath')
+        output_img_filename = 'translated_' +str(scene_fullpath.rsplit('/', 1)[-1])+ '.TIF'
+        gdaltranslate_command = 'gdal_translate ' + self.ot + self.of + self.b + self.mask + self.outsize + self.scale + self.tiled + self.blockx_size + self.blocky_size + self.compress + self.photometric + scene_fullpath + '  ' + self.working_dir + "/" + output_img_filename
+        log.info('The complete GDAL translate command is: %s', gdaltranslate_command)
+        task_instance.xcom_push(key='daraa_translated_image', value=str(self.working_dir) + "/" + str(output_img_filename))
+        bo = BashOperator(task_id="bash_operator_translate_daraa", bash_command=gdaltranslate_command)
+        bo.execute(context)
+        return True
 
 class GDALPlugin(AirflowPlugin):
     name = "GDAL_plugin"
