@@ -43,10 +43,13 @@ class GDALWarpOperator(BaseOperator):
 class GDALAddoOperator(BaseOperator):
 
     @apply_defaults
-    def __init__(self, resampling_method, max_overview_level, index, *args, **kwargs):
+    def __init__(self, resampling_method, max_overview_level, index, compress_overview = None, photometric_overview = None, interleave_overview = None, *args, **kwargs):
         self.resampling_method = resampling_method
         self.max_overview_level = max_overview_level
         self.index = index
+        self.compress_overview = ' --config COMPRESS_OVERVIEW ' + compress_overview +' ' if compress_overview else ' '
+        self.photometric_overview = ' --config PHOTOMETRIC_OVERVIEW ' + photometric_overview +' ' if photometric_overview else ' '
+        self.interleave_overview = ' --config INTERLEAVE_OVERVIEW ' + interleave_overview +' ' if interleave_overview else ' '
         level = 2
         levels = ''
         while(level <= int(self.max_overview_level)):
@@ -63,12 +66,62 @@ class GDALAddoOperator(BaseOperator):
         log.info("GDAL Warp Addo params list")
         log.info('Resampling method: %s', self.resampling_method)
         log.info('Max overview level: %s', self.max_overview_level)
-        gdaladdo_command = 'gdaladdo -r ' + self.resampling_method + ' ' + img_abs_path + ' ' + self.levels
+        log.info('COMPRESS_OVERVIEW: %s', self.compress_overview)
+        log.info('PHOTOMETRIC_OVERVIEW: %s', self.photometric_overview)
+        log.info('INTERLEAVE_OVERVIEW: %s', self.interleave_overview)
+        gdaladdo_command = 'gdaladdo -r ' + self.resampling_method + ' ' + self.compress_overview + self.photometric_overview+ self.interleave_overview + img_abs_path + ' ' + self.levels
         log.info('The complete GDAL addo command is: %s', gdaladdo_command)
         bo = BashOperator(task_id='bash_operator_addo_', bash_command=gdaladdo_command)
         bo.execute(context)
 
+class GDALTranslateOperator(BaseOperator):
+
+    @apply_defaults
+    def __init__(self, 
+            tiled = None, 
+            working_dir = None,
+            blockx_size = None,
+            blocky_size = None,
+            compress = None,
+            photometric = None,
+            ot = None, of = None,
+            b = None, mask = None,
+            outsize = None,
+            scale = None,
+            *args, **kwargs):
+
+        self.working_dir = working_dir
+ 
+        self.tiled = ' -co "TILED=' + tiled +'" ' if tiled else ' '
+        self.blockx_size = ' -co "BLOCKXSIZE=' + blockx_size + '" ' if blockx_size else ' '
+        self.blocky_size = ' -co "BLOCKYSIZE=' + blocky_size + '" ' if blocky_size else ' '
+        self.compress = ' -co "COMPRESS=' + compress + '"' if compress else ' '
+        self.photometric = ' -co "PHOTOMETRIC=' + photometric + '" ' if photometric else ' '
+
+        self.ot = ' -ot ' + str(ot) if ot else ''
+        self.of = ' -of ' + str(of) if of else ''
+        self.b = ' -b ' + str(b) if b else ''
+        self.mask = '-mask ' + str(mask) if mask else ''
+        self.outsize = '-outsize ' + str(outsize) if outsize else ''
+        self.scale = ' -scale ' + str(scale) if scale else ''
+
+        log.info('--------------------GDAL_PLUGIN Translate initiated------------')
+        super(GDALTranslateOperator, self).__init__(*args, **kwargs)
+
+    def execute(self, context):
+        log.info('--------------------GDAL_PLUGIN Translate running------------')
+        task_instance = context['task_instance']
+        log.info("GDAL Translate Operator params list")
+        log.info('Working dir: %s', self.working_dir)
+        scene_fullpath = context['task_instance'].xcom_pull('download_task', key='scene_fullpath')
+        output_img_filename = 'translated_' +str(scene_fullpath.rsplit('/', 1)[-1])+ '.TIF'
+        gdaltranslate_command = 'gdal_translate ' + self.ot + self.of + self.b + self.mask + self.outsize + self.scale + self.tiled + self.blockx_size + self.blocky_size + self.compress + self.photometric + scene_fullpath + '  ' + self.working_dir + "/" + output_img_filename
+        log.info('The complete GDAL translate command is: %s', gdaltranslate_command)
+        task_instance.xcom_push(key='daraa_translated_image', value=str(self.working_dir) + "/" + str(output_img_filename))
+        bo = BashOperator(task_id="bash_operator_translate_daraa", bash_command=gdaltranslate_command)
+        bo.execute(context)
+        return True
 
 class GDALPlugin(AirflowPlugin):
     name = "GDAL_plugin"
-    operators = [GDALWarpOperator, GDALAddoOperator]
+    operators = [GDALWarpOperator, GDALAddoOperator, GDALTranslateOperator]
