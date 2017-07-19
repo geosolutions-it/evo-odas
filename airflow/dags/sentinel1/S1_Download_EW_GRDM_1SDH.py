@@ -27,13 +27,12 @@ default_args = {
     # 'priority_weight': 10,
     # 'end_date': datetime(2016, 1, 1),
     #
-    ##################################################
-    # Search and Download plugin configuration
+}
+
+search_task_args = {
     'dhus_url': 'https://scihub.copernicus.eu/dhus',
     'dhus_user': dhus_credentials['username'],
     'dhus_pass': dhus_credentials['password'],
-    'download_base_dir': '/var/data/download/',
-    'download_max': '1',
     'geojson_bbox': '/var/data/regions/europe.geojson',
     'startdate': (datetime.today() - timedelta(days=30)).isoformat() + 'Z',
     'enddate': datetime.now().isoformat() + 'Z',
@@ -41,7 +40,15 @@ default_args = {
     'filename': 'S1?_EW_GRDM_1S*',
 }
 
-download_dir = os.path.join(default_args['download_base_dir'], default_args['platformname'], 'GRD')
+download_base_dir= '/var/data/download/'
+download_dir= os.path.join(download_base_dir, search_task_args['platformname'], 'GRD')
+download_task_args = {
+    'dhus_url': 'https://scihub.copernicus.eu/dhus',
+    'dhus_user': dhus_credentials['username'],
+    'dhus_pass': dhus_credentials['password'],
+    'download_max': '1',
+    'download_dir': '/var/data/download/',
+}
 
 # DAG definition
 dag = DAG('S1_Download_EW_GRDM_1SDH', description='DAG for searching, filtering and downloading Sentinel data from DHUS server',
@@ -51,9 +58,24 @@ dag = DAG('S1_Download_EW_GRDM_1SDH', description='DAG for searching, filtering 
           catchup=False)
 
 # DHUS Search Task Operator
-search_task = DHUSSearchOperator(task_id='dhus_search_task', dag=dag)
+search_task = DHUSSearchOperator(task_id='dhus_search_task',
+                                 dhus_url=search_task_args['dhus_url'],
+                                 dhus_user=search_task_args['dhus_user'],
+                                 dhus_pass=search_task_args['dhus_pass'],
+                                 geojson_bbox=search_task_args['geojson_bbox'],
+                                 startdate=search_task_args['startdate'],
+                                 enddate=search_task_args['enddate'],
+                                 platformname=search_task_args['platformname'],
+                                 filename=search_task_args['filename'],
+                                 dag=dag)
 
 # DHUS Download Task Operator
-download_task = DHUSDownloadOperator(task_id='dhus_download_task', dag=dag, download_dir=download_dir)
+download_task = DHUSDownloadOperator(task_id='dhus_download_task',
+                                     dhus_url=download_task_args['dhus_url'],
+                                     dhus_user=download_task_args['dhus_user'],
+                                     dhus_pass=download_task_args['dhus_pass'],
+                                     download_max=download_task_args['download_max'],
+                                     download_dir=download_task_args['download_dir'],
+                                     dag=dag)
 
-search_task >> download_task 
+search_task >> download_task
