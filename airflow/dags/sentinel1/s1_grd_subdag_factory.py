@@ -17,12 +17,13 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
 
   GEOSERVER_REST_URL = 'http://cloudsdi.geo-solutions.it/geoserver/rest'
   GS_USER = 'admin'
-  STORENAME = 'sentinel1_slc'
+  GS_PASSWORD = '******'
+  STORENAME = 'sentinel1_grd'
 
   HOST = 'cloudsdi.geo-solutions.it'
   REMOTE_USR = 'airflow'
   SSH_KEY_FILE = '/root/.ssh/id_rsa'
-  MOSAIC_PATH = '/efs/geoserver_data/coverages/sentinel/sentinel1/slc'
+  MOSAIC_PATH = '/efs/geoserver_data/coverages/sentinel/sentinel1/grd'
   WORKING_DIR = '/tmp'
 
   dag = DAG(
@@ -31,7 +32,7 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
     start_date=start_date,
   )
 
-  for i in range(1, 7):
+  for i in range(1, 3):
     warp = GDALWarpOperator(
         target_srs = TARGET_SRS,
         tile_size = TILE_SIZE,
@@ -39,7 +40,8 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
         overwrite = OVERWRITE,
         index = i,
         task_id ='gdal_warp_' + str(i),
-        dag = dag
+        dag = dag,
+        main_dag_name = parent_dag_name
     )
 
     addo = GDALAddoOperator(
@@ -61,6 +63,7 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
         dag = dag
     )
 
+  """
     add_granule = GSAddMosaicGranule(
         geoserver_rest_url = GEOSERVER_REST_URL,
         gs_user = GS_USER,
@@ -71,7 +74,8 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
         task_id = 'gs_add_mosaic_granule' + str(i),
         dag = dag
     )
-
-    warp >> addo >> transfer >> add_granule
+  """
+  #warp >> addo >> transfer >> add_granule
+  warp >> addo
 
   return dag

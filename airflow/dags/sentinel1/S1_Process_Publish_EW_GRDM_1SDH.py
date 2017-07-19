@@ -1,6 +1,6 @@
 from airflow import DAG
 from datetime import datetime
-from s1_grd_subdag_factory import gdal_processing_sub_dag
+from sentinel1.s1_grd_subdag_factory import gdal_processing_sub_dag
 from airflow.operators import ZipInspector, MockDownload, SubDagOperator
 
 default_args = {
@@ -13,9 +13,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'max_threads': 1,
-    'dhus_url': 'https://scihub.copernicus.eu/dhus',
-    'dhus_user': '*******',
-    'dhus_pass': '*******',
     'download_dir': '/var/data/download',
     'download_max': '1',
     'geojson_bbox': '/var/data/regions/germany.geojson',
@@ -25,9 +22,9 @@ default_args = {
     'identifier': 'S2A_MSIL1C_20170510T103031_N0205_R108_T32UPV_20170510T103025'
 }
 
-INTERVAL = '0 12 * * *'
+INTERVAL = '0 11 * * *'
 DATE = datetime(2017, 5, 4)
-DAG_NAME = 'S1_Process_Publish_EW_GRDM_1SDV'
+DAG_NAME = 'S1_Process_Publish_EW_GRDM_1SDH'
 SUBDAG_NAME = 'sentinel1_gdal'
 
 main_dag = DAG(DAG_NAME, description='Sentinel1 ingestion flow',
