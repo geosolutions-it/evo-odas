@@ -3,11 +3,8 @@ import logging
 import psycopg2
 import urllib
 import pgsqlConfig as PGSQL
-from datetime import datetime
-from datetime import timedelta
-from datetime import timedelta
-from airflow.operators import BaseOperator 
-from airflow.operators import BashOperator
+from datetime import datetime, timedelta
+from airflow.operators import BaseOperator, BashOperator 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 import os
@@ -72,9 +69,11 @@ class Landsat8DownloadOperator(BaseOperator):
         log.info('Download Directory: %s', self.download_dir)
         print("Execute Landsat8 Download ... ")
         scene_url = context['task_instance'].xcom_pull('landsat8_search_daraa_task', key='searched_products')
-
-        create_dir = BashOperator(task_id="bash_operator_translate_daraa", bash_command="mkdir {}".format(self.download_dir+scene_url[1]))
-        create_dir.execute(context)
+        if os.path.isdir(self.download_dir+scene_url[1]):
+           pass
+        else:
+           create_dir = BashOperator(task_id="bash_operator_translate_daraa", bash_command="mkdir {}".format(self.download_dir+scene_url[1]))
+           create_dir.execute(context)
         counter = 1
         while counter <= self.number_of_bands:
            urllib.urlretrieve(scene_url[2].replace("index.html",scene_url[0]+"_B"+str(counter)+".TIF"),os.path.join(self.download_dir+scene_url[1],scene_url[0]+'_B'+str(counter)+'.TIF'))
