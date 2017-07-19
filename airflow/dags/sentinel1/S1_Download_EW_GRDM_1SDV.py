@@ -1,6 +1,6 @@
 import os
 import logging
-from sentinel1.config import dhus_config
+from sentinel1.secrets import dhus_credentials
 from airflow import DAG
 from airflow.operators import DHUSSearchOperator, DHUSDownloadOperator
 
@@ -29,9 +29,9 @@ default_args = {
     #
     ##################################################
     # Search and Download plugin configuration
-    'dhus_url': dhus_config['dhus_url'],
-    'dhus_user': dhus_config['dhus_user'],
-    'dhus_pass': dhus_config['dhus_pass'],
+    'dhus_url': 'https://scihub.copernicus.eu/dhus',
+    'dhus_user': dhus_credentials['username'],
+    'dhus_pass': dhus_credentials['password'],
     'download_base_dir': '/var/data/download/',
     'download_max': '1',
     'geojson_bbox': '/var/data/regions/europe.geojson',

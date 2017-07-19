@@ -1,6 +1,7 @@
+import logging
 from airflow.models import DAG
 from airflow.operators import BashOperator, GDALWarpOperator, GDALAddoOperator, GSAddMosaicGranule, RSYNCOperator
-import logging
+from sentinel1.secrets import geoserver_credentials
 
 log = logging.getLogger(__name__)
 
@@ -16,8 +17,8 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
   MAX_OVERVIEW_LEVEL = 512
 
   GEOSERVER_REST_URL = 'http://cloudsdi.geo-solutions.it/geoserver/rest'
-  GS_USER = 'admin'
-  GS_PASSWORD = '******'
+  GS_USER = geoserver_credentials['username']
+  GS_PASSWORD = geoserver_credentials['password']
   STORENAME = 'sentinel1_grd'
 
   HOST = 'cloudsdi.geo-solutions.it'
