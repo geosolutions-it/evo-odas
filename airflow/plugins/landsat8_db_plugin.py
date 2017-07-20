@@ -48,22 +48,23 @@ class ExtractSceneList(BaseOperator):
 class UpdateSceneList(BaseOperator):
 
     @apply_defaults
-    def __init__(self, *args, **kwargs):
+    def __init__(self, psql_dbname, psql_hostname, psql_port, psql_username, *args, **kwargs):
         log.info('-------------------- UpdateSceneList ------------')
+        self.psql_dbname = psql_dbname
+        self.psql_hostname = psql_hostname
+        self.psql_port = psql_port
+        self.psql_username = psql_username
         super(UpdateSceneList, self).__init__(*args, **kwargs)
 
     def execute(self, context):
         log.info('-------------------- UpdateSceneList Execute------------')
         scene_list_csv_path = context['task_instance'].xcom_pull('extract_scene_list_task', key='scene_list_csv_path')
-
-        postgres_delete_command = r"echo '\x \\ delete FROM scene_list;' | psql"
+        postgres_delete_command = r"echo '\x \\ delete FROM scene_list;' |" + "psql -d {} -h {} -p {} -U {}".format(self.psql_dbname, self.psql_hostname, self.psql_port, self.psql_username)
         delete_op = BashOperator(task_id='DeleteOP_psql', bash_command=postgres_delete_command)
         delete_op.execute(context)
-
-        postgres_import_command = "psql -c \"" + "\copy scene_list FROM '" +scene_list_csv_path + r"' delimiter ',' csv header""
+        postgres_import_command = "psql -d {} -h {} -p {} -U {} -c \"".format(self.psql_dbname, self.psql_hostname, self.psql_port, self.psql_username) + "\copy scene_list FROM '" +scene_list_csv_path + "\' delimiter ',' csv header\""
         import_op = BashOperator(task_id='ImportOP_psql', bash_command=postgres_import_command)
         import_op.execute(context)
-
         return True
 
 class LANDSAT8DBPlugin(AirflowPlugin):

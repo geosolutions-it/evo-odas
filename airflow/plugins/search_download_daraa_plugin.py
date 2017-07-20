@@ -19,13 +19,22 @@ class Landsat8SearchOperator(BaseOperator):
             path, 
             row, 
             processing_level="L1TP",
+            pgdbname,
+            pghostname,
+            pgport,
+            pgusername,
+            pgpassword,
             *args, **kwargs):
         self.cloud_coverage = cloud_coverage
         #self.acquisition_date = str(acquisition_date)
         self.path = path
         self.row = row
         self.processing_level = processing_level
-
+        self.pgdbname = pgdbname
+        self.pghostname = pghostname
+        self.pgport = pgport
+        self.pgusername = pgusername
+        self.pgpassword = pgpassword
         print("Initialization of Daraa Landsat8SearchOperator ...")
         super(Landsat8SearchOperator, self).__init__(*args, **kwargs)
         
@@ -40,7 +49,7 @@ class Landsat8SearchOperator(BaseOperator):
         log.info('Processing Level: %s', self.processing_level)
         print("Executing Landsat8SearchOperator .. ")
 
-        db = psycopg2.connect("dbname='{}' user='{}' host='{}' password='{}'".format(PGSQL.DB, PGSQL.USER, PGSQL.HOST, PGSQL.PASS))
+        db = psycopg2.connect("dbname='{}' user='{}' host='{}' password='{}'".format(self.pgdbname, self.pgusername, self.pghostname, self.pgpassword))
         cursor = db.cursor()
         sql_stmt = 'select productId, entityId, download_url from scene_list where cloudCover < {} and path = {} and row = {} order by acquisitionDate desc limit 1'.format(self.cloud_coverage,self.path,self.row)
         cursor.execute(sql_stmt)
@@ -80,7 +89,6 @@ class Landsat8DownloadOperator(BaseOperator):
            counter+=1
         context['task_instance'].xcom_push(key='scene_fullpath', value=self.download_dir+scene_url[1])
         return True
-
 
 class SearchDownloadDaraaPlugin(AirflowPlugin):
     name = "search_download_daraa_plugin"
