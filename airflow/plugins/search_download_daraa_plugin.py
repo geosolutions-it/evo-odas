@@ -2,7 +2,6 @@ from airflow import DAG
 import logging
 import psycopg2
 import urllib
-import pgsqlConfig as PGSQL
 from datetime import datetime, timedelta
 from airflow.operators import BaseOperator, BashOperator 
 from airflow.plugins_manager import AirflowPlugin
@@ -17,13 +16,13 @@ class Landsat8SearchOperator(BaseOperator):
     def __init__(self, 
             cloud_coverage, 
             path, 
-            row, 
-            processing_level="L1TP",
+            row,
             pgdbname,
             pghostname,
             pgport,
             pgusername,
             pgpassword,
+            processing_level="L1TP",
             *args, **kwargs):
         self.cloud_coverage = cloud_coverage
         #self.acquisition_date = str(acquisition_date)

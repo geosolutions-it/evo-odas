@@ -1,9 +1,9 @@
 from airflow.models import DAG
 from airflow.operators import BashOperator, Landsat8SearchOperator, Landsat8DownloadOperator
+from landsat8.secrets import postgresql_credentials
 import logging
 from datetime import datetime
 from datetime import timedelta
-import pgsqlConfig as PGSQL
 
 
 ##################################################
@@ -28,16 +28,16 @@ daraa_search_args = {\
 	'cloud_coverage': 90.9,
 	'path': 174,
 	'row' : 37,
-	'pgdbname':PGSQL.psql_options['dbname'],
-	'pghostname':PGSQL.psql_options['hostname'],
-	'pgport':PGSQL.psql_options['port'],
-	'pgusername':PGSQL.psql_options['username'],
-	'pgpassword':PGSQL.psql_options['password'],
+	'pgdbname':postgresql_credentials['dbname'],
+	'pghostname':postgresql_credentials['hostname'],
+	'pgport':postgresql_credentials['port'],
+	'pgusername':postgresql_credentials['username'],
+	'pgpassword':postgresql_credentials['password'],
 }
 
 
 daraa_download_args = {\
-	'download_dir': '/home/moataz/airflow/data/downloads/',
+	'download_dir': '/var/data/download/',
 	'number_of_bands' : 2
 }
 

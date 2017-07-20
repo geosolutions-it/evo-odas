@@ -1,9 +1,9 @@
 from airflow import DAG
 from datetime import datetime, timedelta
 from airflow.operators import BaseOperator, BashOperator, DownloadSceneList, ExtractSceneList, UpdateSceneList
+from landsat8.secrets import postgresql_credentials
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
-import pgsqlConfig as PGSQL
 
 ##################################################
 # General and shared configuration between tasks
@@ -18,7 +18,7 @@ update_scene_list_default_args = {
     'email_on_retry': False,
     'retries': 1,
     'max_threads': 1,
-    'download_dir': '/home/moataz/airflow/data/downloads/' 
+    'download_dir': '/var/data/download/'
 }
 
 ######################################################
@@ -29,10 +29,10 @@ download_scene_list_args = {
 }
 
 update_scene_list_args = {
-		'psql_dbname' : PGSQL.psql_options['dbname'], 
-		'psql_hostname' : PGSQL.psql_options['hostname'], 
-		'psql_port' : PGSQL.psql_options['port'], 
-		'psql_username' : PGSQL.psql_options['username'] 
+		'psql_dbname' : postgresql_credentials['dbname'],
+		'psql_hostname' : postgresql_credentials['hostname'],
+		'psql_port' : postgresql_credentials['port'],
+		'psql_username' : postgresql_credentials['username']
 }
 
 # DAG definition
