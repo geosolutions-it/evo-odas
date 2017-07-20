@@ -110,6 +110,20 @@ RUN apt-get update -yqq \
         /usr/share/doc \
         /usr/share/doc-base
 
+#
+# Install PostgreSQL client
+#
+RUN apt-get update -yqq \
+    && apt-get install -yqq postgresql-client \
+    && apt-get clean \
+    && rm -rf \
+        /var/lib/apt/lists/* \
+        /tmp/* \
+        /var/tmp/* \
+        /usr/share/man \
+        /usr/share/doc \
+        /usr/share/doc-base
+
 # Copy Configuration
 COPY airflow.cfg /usr/local/airflow/airflow.cfg
 
