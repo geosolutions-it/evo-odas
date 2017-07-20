@@ -2,6 +2,7 @@ import logging
 import pprint
 import urllib
 import gzip
+import psycopg2
 from datetime import datetime, timedelta
 from airflow.operators import BaseOperator, BashOperator 
 from airflow.plugins_manager import AirflowPlugin
@@ -48,23 +49,33 @@ class ExtractSceneList(BaseOperator):
 class UpdateSceneList(BaseOperator):
 
     @apply_defaults
-    def __init__(self, psql_dbname, psql_hostname, psql_port, psql_username, *args, **kwargs):
+    def __init__(self, pg_dbname, pg_hostname, pg_port, pg_username, pg_password,*args, **kwargs):
         log.info('-------------------- UpdateSceneList ------------')
-        self.psql_dbname = psql_dbname
-        self.psql_hostname = psql_hostname
-        self.psql_port = psql_port
-        self.psql_username = psql_username
+        self.pg_dbname = pg_dbname
+        self.pg_hostname = pg_hostname
+        self.pg_port = pg_port
+        self.pg_username = pg_username
+        self.pg_password = pg_password
         super(UpdateSceneList, self).__init__(*args, **kwargs)
 
     def execute(self, context):
         log.info('-------------------- UpdateSceneList Execute------------')
         scene_list_csv_path = context['task_instance'].xcom_pull('extract_scene_list_task', key='scene_list_csv_path')
-        postgres_delete_command = r"echo '\x \\ delete FROM scene_list;' |" + "psql -d {} -h {} -p {} -U {}".format(self.psql_dbname, self.psql_hostname, self.psql_port, self.psql_username)
-        delete_op = BashOperator(task_id='DeleteOP_psql', bash_command=postgres_delete_command)
-        delete_op.execute(context)
-        postgres_import_command = "psql -d {} -h {} -p {} -U {} -c \"".format(self.psql_dbname, self.psql_hostname, self.psql_port, self.psql_username) + "\copy scene_list FROM '" +scene_list_csv_path + "\' delimiter ',' csv header\""
-        import_op = BashOperator(task_id='ImportOP_psql', bash_command=postgres_import_command)
-        import_op.execute(context)
+        
+        delete_first_line_cmd = "tail -n +2 " + scene_list_csv_path + "> " + scene_list_csv_path+".tmp && mv "+ scene_list_csv_path +".tmp  " + scene_list_csv_path
+        delete_line_operator = BashOperator(task_id='Delete_first_line_OP', bash_command = delete_first_line_cmd)
+        delete_line_operator.execute(context)
+
+        db = psycopg2.connect("dbname='{}' user='{}' host='{}' password='{}'".format(self.pg_dbname, self.pg_username, self.pg_hostname, self.pg_password))
+        cursor = db.cursor()
+        cursor.execute("delete from scene_list")
+        db.commit()
+
+        fo = open(scene_list_csv_path, 'r')	
+        cursor.copy_from(fo, 'scene_list',sep=',')
+        db.commit()
+
+        fo.close()
         return True
 
 class LANDSAT8DBPlugin(AirflowPlugin):
