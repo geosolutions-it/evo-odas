@@ -1,10 +1,10 @@
-import os
 import logging
-from sentinel1.secrets import dhus_credentials
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators import DHUSSearchOperator, DHUSDownloadOperator
+from sentinel1.secrets import dhus_credentials
+from sentinel1.config import ew_grdm_1sdv_config
 
-from datetime import datetime, timedelta
 
 log = logging.getLogger(__name__)
 
@@ -27,21 +27,7 @@ default_args = {
     # 'priority_weight': 10,
     # 'end_date': datetime(2016, 1, 1),
     #
-    ##################################################
-    # Search and Download plugin configuration
-    'dhus_url': 'https://scihub.copernicus.eu/dhus',
-    'dhus_user': dhus_credentials['username'],
-    'dhus_pass': dhus_credentials['password'],
-    'download_base_dir': '/var/data/download/',
-    'download_max': '1',
-    'geojson_bbox': '/var/data/regions/europe.geojson',
-    'startdate': (datetime.today() - timedelta(days=30)).isoformat() + 'Z',
-    'enddate': datetime.now().isoformat() + 'Z',
-    'platformname': 'Sentinel-1',
-    'filename': 'S1?_EW_GRDM_1SDV*',
 }
-
-download_dir = os.path.join(default_args['download_base_dir'], default_args['platformname'], 'GRD')
 
 # DAG definition
 dag = DAG('S1_Download_EW_GRDM_1SDV', description='DAG for searching, filtering and downloading Sentinel data from DHUS server',
@@ -51,9 +37,26 @@ dag = DAG('S1_Download_EW_GRDM_1SDV', description='DAG for searching, filtering 
           catchup=False)
 
 # DHUS Search Task Operator
-search_task = DHUSSearchOperator(task_id='dhus_search_task', dag=dag)
+search_task = DHUSSearchOperator(task_id='dhus_search_task',
+                                 dhus_url='https://scihub.copernicus.eu/dhus',
+                                 dhus_user=dhus_credentials['username'],
+                                 dhus_pass=dhus_credentials['password'],
+                                 geojson_bbox=ew_grdm_1sdv_config['geojson_bbox'],
+                                 startdate=ew_grdm_1sdv_config['startdate'],
+                                 enddate=ew_grdm_1sdv_config['enddate'],
+                                 platformname=ew_grdm_1sdv_config['platformname'],
+                                 filename=ew_grdm_1sdv_config['filename'],
+                                 dag=dag)
 
 # DHUS Download Task Operator
-download_task = DHUSDownloadOperator(task_id='dhus_download_task', dag=dag, download_dir=download_dir)
+download_task = DHUSDownloadOperator(task_id='dhus_download_task',
+                                     dhus_url='https://scihub.copernicus.eu/dhus',
+                                     dhus_user=dhus_credentials['username'],
+                                     dhus_pass=dhus_credentials['password'],
+                                     download_max=ew_grdm_1sdv_config['download_max'],
+                                     download_dir=ew_grdm_1sdv_config['download_dir'],
+                                     dag=dag)
+
+
 
 search_task >> download_task 
