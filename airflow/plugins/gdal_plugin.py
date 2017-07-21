@@ -1,12 +1,10 @@
 import os
 import logging
-import pprint
+import math
 from airflow.operators import BashOperator
 from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
-from zipfile import ZipFile
-import config.xcom_keys as xk
 
 log = logging.getLogger(__name__)
 
@@ -66,7 +64,9 @@ class GDALWarpOperator(BaseOperator):
                 self.xk_pull_key_srcfile = 'srcdir'
             #log.info('XCom Pull: task_ids: {} key: {} dag_id: {}'.format(self.xk_pull_task_id, self.xk_pull_key, self.xk_pull_dag_id))
             srcfile = task_instance.xcom_pull(task_ids=self.xk_pull_task_id, key=self.xk_pull_key_srcfile, dag_id=self.xk_pull_dag_id)
+        assert srcfile is not None
         log.info('srcfile: %s', srcfile)
+
         # extract filename and directory path
         srcfilename = os.path.basename(srcfile)
         srcdir = os.path.dirname(srcfile)
@@ -83,8 +83,9 @@ class GDALWarpOperator(BaseOperator):
         if dstdir is None:
             log.info("using srcdir as dstdir")
             dstdir = srcdir
-        dstfile = os.path.join(dstdir, srcfilename) + '_warped'
         log.info('dstdir: %s', dstdir)
+        dstfile = os.path.join(dstdir, srcfilename)
+        assert dstfile is not None
         log.info('dstfile: %s', dstfile)
 
         # build gdalwarp command
@@ -105,37 +106,78 @@ class GDALWarpOperator(BaseOperator):
 class GDALAddoOperator(BaseOperator):
 
     @apply_defaults
-    def __init__(self, resampling_method, max_overview_level, index, compress_overview = None, photometric_overview = None, interleave_overview = None, *args, **kwargs):
+    def __init__(self, resampling_method, max_overview_level, compress_overview = None, photometric_overview = None, interleave_overview = None, srcfile = None, xk_pull_dag_id=None, xk_pull_task_id=None, xk_pull_key_srcfile=None, xk_push_key=None, *args, **kwargs):
         self.resampling_method = resampling_method
         self.max_overview_level = max_overview_level
-        self.index = index
         self.compress_overview = ' --config COMPRESS_OVERVIEW ' + compress_overview +' ' if compress_overview else ' '
         self.photometric_overview = ' --config PHOTOMETRIC_OVERVIEW ' + photometric_overview +' ' if photometric_overview else ' '
         self.interleave_overview = ' --config INTERLEAVE_OVERVIEW ' + interleave_overview +' ' if interleave_overview else ' '
-        level = 2
+        self.srcfile = srcfile
+        self.xk_pull_dag_id = xk_pull_dag_id
+        self.xk_pull_task_id = xk_pull_task_id
+        self.xk_pull_key_srcfile = xk_pull_key_srcfile
+        self.xk_push_key = xk_push_key
+
         levels = ''
-        while(level <= int(self.max_overview_level)):
-            level = level*2
-            levels += str(level)
-            levels += ' '
+        for i in range(1, int(math.log(max_overview_level, 2)) + 1):
+            levels += str(2**i) + ' '
         self.levels = levels
-        log.info('-------------------- GDAL_PLUGIN Addo ------------')
+
         super(GDALAddoOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
+        log.info('-------------------- GDAL_PLUGIN Addo ------------')
         task_instance = context['task_instance']
-        img_abs_path = task_instance.xcom_pull('gdal_warp_' + str(self.index), key=xk.WORKDIR_IMG_NAME_PREFIX_XCOM_KEY + str(self.index))
-        if img_abs_path == None:
-            raise TypeError("Error while fetching input filename, was '" + xk.WORKDIR_IMG_NAME_PREFIX_XCOM_KEY + str(self.index) +
-                            "' xcom correctly pushed by the previous task?")
-        log.info("GDAL Warp Addo params list")
-        log.info('Resampling method: %s', self.resampling_method)
-        log.info('Max overview level: %s', self.max_overview_level)
-        log.info('COMPRESS_OVERVIEW: %s', self.compress_overview)
-        log.info('PHOTOMETRIC_OVERVIEW: %s', self.photometric_overview)
-        log.info('INTERLEAVE_OVERVIEW: %s', self.interleave_overview)
-        gdaladdo_command = 'gdaladdo -r ' + self.resampling_method + ' ' + self.compress_overview + self.photometric_overview+ self.interleave_overview + img_abs_path + ' ' + self.levels
+
+        log.info("""
+            resampling_method: {}
+            max_overview_level: {}
+            compress_overview: {}
+            photometric_overview: {}
+            interleave_overview: {}
+            srcfile: {}
+            xk_pull_dag_id: {}
+            xk_pull_task_id: {}
+            xk_pull_key_srcfile: {}
+            xk_push_key: {}
+            """.format(
+            self.resampling_method,
+            self.max_overview_level,
+            self.compress_overview,
+            self.photometric_overview,
+            self.interleave_overview,
+            self.srcfile,
+            self.xk_pull_dag_id,
+            self.xk_pull_task_id,
+            self.xk_pull_key_srcfile,
+            self.xk_push_key
+            )
+        )
+
+        # init XCom parameters
+        if self.xk_pull_dag_id is None:
+            self.xk_pull_dag_id = context['dag'].dag_id
+        # check input file path passed otherwise look for it in XCom
+        if self.srcfile is not None:
+            srcfile = self.srcfile
+        else:
+            if self.xk_pull_key_srcfile is None:
+                self.xk_pull_key_srcfile = 'srcdir'
+            log.info('XCom Pull: task_ids: {} key: {} dag_id: {}'.format(self.xk_pull_task_id, self.xk_pull_key_srcfile, self.xk_pull_dag_id))
+            srcfile = task_instance.xcom_pull(task_ids=self.xk_pull_task_id, key=self.xk_pull_key_srcfile, dag_id=self.xk_pull_dag_id)
+        assert srcfile is not None
+        log.info('srcfile: %s', srcfile)
+        log.info('levels %s', self.levels)
+
+        gdaladdo_command = 'gdaladdo -r ' + self.resampling_method + ' ' + self.compress_overview + self.photometric_overview+ self.interleave_overview + srcfile + ' ' + self.levels
         log.info('The complete GDAL addo command is: %s', gdaladdo_command)
+
+        # push output path to XCom
+        if self.xk_push_key is None:
+            self.xk_push_key = 'dstfile'
+        task_instance.xcom_push(key='dstfile', value=srcfile)
+
+        # run the command
         bo = BashOperator(task_id='bash_operator_addo_', bash_command=gdaladdo_command)
         bo.execute(context)
 

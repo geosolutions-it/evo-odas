@@ -49,8 +49,9 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
     addo = GDALAddoOperator(
         resampling_method = RESAMPLING_METHOD,
         max_overview_level = MAX_OVERVIEW_LEVEL,
-        index = i,
         task_id = 'gdal_addo_' + str(i),
+        xk_pull_task_id='gdalwarp_' + str(i),
+        xk_pull_key_srcfile='dstfile',
         dag = dag
     )
 
