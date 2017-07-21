@@ -10,7 +10,7 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
 
   TARGET_SRS = 'EPSG:4326'
   TILE_SIZE = 512
-  WORKING_DIR = '/home/fds/Desktop/work/configurations/mosaic_sentinel1_test'
+  WORKING_DIR = '/var/data/'
   OVERWRITE = True
 
   RESAMPLING_METHOD = 'average'
@@ -37,12 +37,13 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
     warp = GDALWarpOperator(
         target_srs = TARGET_SRS,
         tile_size = TILE_SIZE,
-        working_dir = WORKING_DIR,
         overwrite = OVERWRITE,
-        index = i,
-        task_id ='gdal_warp_' + str(i),
-        dag = dag,
-        main_dag_name = parent_dag_name
+        task_id='gdalwarp_' + str(i),
+        xk_pull_dag_id = parent_dag_name,
+        xk_pull_task_id='zip_inspector',
+        xk_pull_key_srcfile='img_zip_abs_path_' + str(i),
+        dstdir=WORKING_DIR,
+        dag = dag
     )
 
     addo = GDALAddoOperator(
@@ -53,6 +54,8 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
         dag = dag
     )
 
+    warp >> addo
+    """
     transfer = RSYNCOperator(
         host = HOST,
         remote_usr = REMOTE_USR,
@@ -64,7 +67,7 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
         dag = dag
     )
 
-  """
+  
     add_granule = GSAddMosaicGranule(
         geoserver_rest_url = GEOSERVER_REST_URL,
         gs_user = GS_USER,
@@ -77,6 +80,6 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
     )
   """
   #warp >> addo >> transfer >> add_granule
-  warp >> addo
+
 
   return dag
