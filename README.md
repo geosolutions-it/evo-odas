@@ -18,11 +18,3 @@ The `metadata-ingestion` folder contains the python code to feed a database used
 * generate and store html description
 
 Note that this code will probably wrapped in a Airflow custom Operator(s) to be used during the ingestion process. (So it will be moved in the `Airflow` folder)
-
-## nifi-processors
-
-It contains a [NiFi](https://nifi.apache.org/) custom processr implementation to run the GdalWarp utility.
-
-This is an experiment for the NiFi evaluation as evo-odas workflow engine. 
-
-Read also [this](https://github.com/geosolutions-it/evo-odas/wiki/NiFi-watchers-review) wiki page and have a look at [this](https://docs.google.com/spreadsheets/d/1JT4qdj47SlGxhD9viVAe4UcsW_USira8Lh5HhSpZ60c/edit#gid=409340717) document if you are interested in the workflow engine evaluation topic
