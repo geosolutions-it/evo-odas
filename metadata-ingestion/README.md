@@ -8,8 +8,13 @@ It is written in python and it uses:
 * [s2 reader](https://github.com/ungarj/s2reader) to extract metadata from Sentinel2 SAFE packages
 * [pg_simple](https://github.com/masroore/pg_simple) to deal with PostGIS
 * [jinja2](https://github.com/pallets/jinja) for template rendering
+* [pgmagick](https://github.com/hhatto/pgmagick) to produce thumbnails
 
 The model used for the storage is defined in [this DDL](https://github.com/geoserver/geoserver/blob/master/src/community/oseo/oseo-core/src/test/resources/postgis.sql)
+
+### Sentinel1
+
+A subset of the information needed by the OpenSearch model is extracted from the SAFE manifest file using a recent version GDAL's Python APIs
 
 ## Installation
 
@@ -37,12 +42,4 @@ The model used for the storage is defined in [this DDL](https://github.com/geose
 #$ sudo make install
 ```
 
-* then install all the python dependencies listed in the requirements.txt, use the following command in order to ensure the installation order:
-
-```
-#$ sudo xargs -L 1 pip install < requirements.txt
-```
-
 * in order to create the metadata database run [this DDL](https://github.com/geoserver/geoserver/blob/master/src/community/oseo/oseo-core/src/test/resources/postgis.sql) against a PostGIS instance
-
-* set the connection parameters to the PostGIS instance in [this config file](https://github.com/geosolutions-it/evo-odas/blob/master/ingestion/sentinel/configs/metadata_db_connection_params.py)
