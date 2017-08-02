@@ -6,7 +6,7 @@ from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 
-from sentinelsat.sentinel import SentinelAPI, get_coordinates
+from sentinelsat.sentinel import SentinelAPI, read_geojson, geojson_to_wkt
 
 log = logging.getLogger(__name__)
 pp = pprint.PrettyPrinter(indent=2)
@@ -17,13 +17,12 @@ class DHUSSearchOperator(BaseOperator):
     def __init__(self, 
             dhus_url,
             dhus_user,
-            dhus_pass, 
-            download_dir, 
+            dhus_pass,
             geojson_bbox, 
             startdate, 
             enddate,
             platformname=None,
-            identifier=None,
+            filename=None,
             *args, **kwargs):
         self.dhus_url = dhus_url
         self.dhus_user = dhus_user
@@ -32,7 +31,7 @@ class DHUSSearchOperator(BaseOperator):
         self.startdate = str(startdate)
         self.enddate = str(enddate)
         self.platformname = platformname
-        self.identifier = identifier
+        self.filename = filename
 
         print("Init DHUS Search.. ")
         
@@ -44,32 +43,38 @@ class DHUSSearchOperator(BaseOperator):
         log.info("## DHUS Search ##")
         log.info('API URL: %s', self.dhus_url)
         log.info('API User: %s', self.dhus_user)
-        log.info('API Password: %s', self.dhus_pass)
+        #log.info('API Password: %s', self.dhus_pass)
         log.info('Start Date: %s', self.startdate)
         log.info('End Date: %s', self.enddate)
         log.info('GeoJSON: %s', self.geojson_bbox)
         log.info('Platform: %s', self.platformname)
-        log.info('Identifier: %s', self.identifier)
+        log.info('Filename: %s', self.filename)
         
         print("Execute DHUS Search.. ")
 
         # search products
         api = SentinelAPI(self.dhus_user, self.dhus_pass, self.dhus_url)
+        try:
+            footprint = geojson_to_wkt(read_geojson(self.geojson_bbox))
+        except:
+            log.error('Cannot open GeoJSON file: {}'.format(self.geojson_bbox))
+            return False
+
         products = api.query(
-            get_coordinates(self.geojson_bbox),
+            footprint,
             initial_date=self.startdate,
             end_date=self.enddate,
             platformname=self.platformname,
-            identifier=self.identifier
+            filename=self.filename
         )
         
-        product_summary=""
-        for key, product in SentinelAPI.to_dict(products).items():
-            product_summary+='{}|{}|{}\n'.format(product['id'],key,product['summary'])
+        #product_summary=""
+        #for key, product in products.items():
+            #product_summary+='{}|{}|{}\n'.format(product['key'],key,product['summary'])
             #log.info('Product: {}\n{} | {}'.format(product['id'],key,product['summary']))
             #log.debug("{}".format( pp.pprint(product)));        
-        log.info("Found {} products:\n{}".format(len(products),product_summary))
-
+        log.info("Found {} products:\n{}".format(len(products),pprint.pprint(products)))
+        log.debug('Pushing to XCom: {}'.format(products))
         context['task_instance'].xcom_push(key='searched_products', value=products)
         return True
     
@@ -105,49 +110,38 @@ class DHUSDownloadOperator(BaseOperator):
         log.info('Max Downloads: %s', self.download_max)
         log.info('Download Directory: %s', self.download_dir)
 
-        print("Execute DHUS Download.. ")
+        log.info("Execute DHUS Download.. ")
         
         if self.product_ids == None:
             self.product_ids = []
             
-            # retrieving products from previous search step
-            self.products = context['task_instance'].xcom_pull('dhus_search_task', key='searched_products')
-            
-            if len(self.products) == 0: 
-                return True
-            
-            # convert to dict
-            products_dict = SentinelAPI.to_dict(self.products);
-            
-            # convert to Pandas DataFrame
-            products_df = SentinelAPI.to_dataframe(self.products)
+        # retrieving products from previous search step
+        self.products = context['task_instance'].xcom_pull('dhus_search_task', key='searched_products')
+	print('type: {}'.format(self.products))
+        log.info("Retrieved {} products:\n{}".format(len(self.products), pprint.pprint(self.products)))
 
-            # sort and limit to first 5 sorted products
-            products_df_sorted = products_df.sort_values(['ingestiondate'], ascending=[True])
-            products_df_sorted = products_df_sorted.head(self.download_max)
-            
-            product_summary=""
-            for key, product in products_dict.items():
-                self.product_ids.append(product['id'])
-                product_summary+='{}|{}|{}\n'.format(product['id'],key,product['summary'])
-                #log.info('Product: {}\n{} | {}'.format(product['id'],key,product['summary']))
-                #log.debug("{}".format( pp.pprint(product)));
-            log.info("Retrieved {} products:\n{}".format(len(self.products),product_summary))
+        if not self.products or len(self.products) == 0:
+            log.info('no products to process')
+            return True
     
         if len(self.product_ids) > self.download_max:
             log.warn("Found products ({}) exceeds download limit ({})".format(len(self.product_ids), self.download_max))
     
-        log.info('Downloading {} products..'.format(self.download_max))
+        log.info('Downloading up to {} products..'.format(self.download_max))
         product_downloaded = {}
         api = SentinelAPI(self.dhus_user, self.dhus_pass, self.dhus_url)
-        for product_id in self.product_ids:
+        for product_id in self.products.keys():
             if len(product_downloaded) >= self.download_max:
-                break;            
-            path, product_info = api.download(product_id, directory_path=self.download_dir);
-            # TODO check if file in 'path' is binary. 
+                break;
+            log.info('Download Product ID {}'.format(product_id))
+            downloaded = api.download(product_id, directory_path=self.download_dir);
+            path = downloaded['path']
+            # TODO check if file in 'path' is binary.
             # It might is an XML file containing an error such as 
             # "Maximum number of 2 concurrent flows achieved by the user "xyz""
-            product_downloaded[path] = product_info;
+            # Check MD5
+            # If file already downloaded move on to next one?
+            product_downloaded[path] = downloaded;
         
         log.debug("Downloaded {} products:\n{}".format(len(product_downloaded),pp.pprint(product_downloaded)))
         context['task_instance'].xcom_push(key='downloaded_products', value=product_downloaded)
