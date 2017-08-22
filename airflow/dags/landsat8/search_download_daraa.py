@@ -136,4 +136,5 @@ product_zip_task = Landsat8ProductZipFileOperator(\
 		task_id = 'landsat8_product_zip_task',
 		dag = daraa_dag)
 
+
 search_daraa_task >> download_daraa_task >> translate_daraa_task >> addo_daraa_task >> product_json_task >> product_thumbnail_task >> product_description_task >> product_zip_task

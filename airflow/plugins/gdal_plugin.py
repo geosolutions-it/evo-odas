@@ -244,6 +244,7 @@ class GDALTranslateOperator(BaseOperator):
         #delete_b_o.execute(context)
         return True
 
+
 class GDALPlugin(AirflowPlugin):
     name = "GDAL_plugin"
     operators = [GDALWarpOperator, GDALAddoOperator, GDALTranslateOperator]

@@ -98,6 +98,7 @@ class Landsat8DownloadOperator(BaseOperator):
         context['task_instance'].xcom_push(key='scene_fullpath', value=self.download_dir+scene_url[1])
         return True
 
+
 class SearchDownloadDaraaPlugin(AirflowPlugin):
     name = "search_download_daraa_plugin"
     operators = [Landsat8SearchOperator, Landsat8DownloadOperator]

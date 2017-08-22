@@ -154,8 +154,6 @@ class Landsat8GranuleJsonFileOperator(BaseOperator):
                 
                 return True
 
-
-
 class LANDSAT8METADATAPlugin(AirflowPlugin):
         name = "landsat8_metadata_plugin"
         operators = [Landsat8MTLReaderOperator, Landsat8ThumbnailOperator, Landsat8ProductDescriptionOperator, Landsat8ProductZipFileOperator]
