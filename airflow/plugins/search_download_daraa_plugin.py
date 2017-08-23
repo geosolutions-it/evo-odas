@@ -68,7 +68,9 @@ class Landsat8DownloadOperator(BaseOperator):
             *args, **kwargs):
         self.download_dir = download_dir
         self.number_of_bands = number_of_bands
+	log.info("----------------------------------------------------")
         print("Initialization of Landsat8 Download ... ")
+	log.info('Download Directory: %s', self.download_dir)
         super(Landsat8DownloadOperator, self).__init__(execution_timeout=download_timeout,*args, **kwargs)
 
     def execute(self, context):
@@ -77,17 +79,25 @@ class Landsat8DownloadOperator(BaseOperator):
         log.info('Download Directory: %s', self.download_dir)
         print("Execute Landsat8 Download ... ")
         scene_url = context['task_instance'].xcom_pull('landsat8_search_daraa_task', key='searched_products')
+	log.info("#######################")
+	log.info(self.download_dir+scene_url[1])
         if os.path.isdir(self.download_dir+scene_url[1]):
            pass
         else:
            create_dir = BashOperator(task_id="bash_operator_translate_daraa", bash_command="mkdir {}".format(self.download_dir+scene_url[1]))
            create_dir.execute(context)
         counter = 1
-        while counter <= self.number_of_bands:
-           urllib.urlretrieve(scene_url[2].replace("index.html",scene_url[0]+"_B"+str(counter)+".TIF"),os.path.join(self.download_dir+scene_url[1],scene_url[0]+'_B'+str(counter)+'.TIF'))
-           counter+=1
+	try:
+		urllib.urlretrieve(os.path.join(scene_url[2].replace("index.html",scene_url[0]+"_MTL.txt")),os.path.join(self.download_dir+scene_url[1],scene_url[0]+'_MTL.txt'))
+		urllib.urlretrieve(os.path.join(scene_url[2].replace("index.html",scene_url[0]+"_thumb_small.jpg")),os.path.join(self.download_dir+scene_url[1],scene_url[0]+'_thumb_small.jpg'))
+		while counter <= self.number_of_bands:
+			urllib.urlretrieve(scene_url[2].replace("index.html",scene_url[0]+"_B"+str(counter)+".TIF"),os.path.join(self.download_dir+scene_url[1],scene_url[0]+'_B'+str(counter)+'.TIF'))
+			counter+=1
+	except:
+		log.info("EXCEPTION: ### Download not completed successfully, please check all the scenes, mtl and small jpg ###")
         context['task_instance'].xcom_push(key='scene_fullpath', value=self.download_dir+scene_url[1])
         return True
+
 
 class SearchDownloadDaraaPlugin(AirflowPlugin):
     name = "search_download_daraa_plugin"

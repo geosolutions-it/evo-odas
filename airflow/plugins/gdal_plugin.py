@@ -1,10 +1,14 @@
-import os
-import logging
-import math
 from airflow.operators import BashOperator
 from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
+import os
+import logging
+import math
+import json
+import shutil
+from pgmagick import Image, Geometry
+import zipfile
 
 log = logging.getLogger(__name__)
 
@@ -220,14 +224,26 @@ class GDALTranslateOperator(BaseOperator):
         task_instance = context['task_instance']
         log.info("GDAL Translate Operator params list")
         log.info('Working dir: %s', self.working_dir)
-        scene_fullpath = context['task_instance'].xcom_pull('download_task', key='scene_fullpath')
-        output_img_filename = 'translated_' +str(scene_fullpath.rsplit('/', 1)[-1])+ '.TIF'
-        gdaltranslate_command = 'gdal_translate ' + self.ot + self.of + self.b + self.mask + self.outsize + self.scale + self.tiled + self.blockx_size + self.blocky_size + self.compress + self.photometric + scene_fullpath + '  ' + self.working_dir + "/" + output_img_filename
-        log.info('The complete GDAL translate command is: %s', gdaltranslate_command)
-        task_instance.xcom_push(key='daraa_translated_image', value=str(self.working_dir) + "/" + str(output_img_filename))
-        bo = BashOperator(task_id="bash_operator_translate_daraa", bash_command=gdaltranslate_command)
-        bo.execute(context)
+        scene_fullpath = context['task_instance'].xcom_pull('landsat8_download_daraa_task', key='scene_fullpath')
+        scenes = os.listdir(scene_fullpath)
+        if not os.path.exists(scene_fullpath+"__translated"):
+            create_translated_dir = BashOperator(task_id="bash_operator_translate", bash_command="mkdir {}".format(scene_fullpath+"__translated"))
+            create_translated_dir.execute(context)
+        for scene in scenes:
+          if scene.endswith(".TIF"):
+            output_img_filename = 'translated_' +str(scene)
+            gdaltranslate_command = 'gdal_translate ' + self.ot + self.of + self.b + self.mask + self.outsize + self.scale + self.tiled + self.blockx_size + self.blocky_size + self.compress + self.photometric + os.path.join(scene_fullpath ,scene) +'  ' + os.path.join(scene_fullpath+"__translated" , output_img_filename)
+            log.info('The complete GDAL translate command is: %s', gdaltranslate_command)
+            b_o = BashOperator(task_id="bash_operator_translate_scenes", bash_command = gdaltranslate_command)
+            b_o.execute(context)
+        task_instance.xcom_push(key = 'translated_scenes_dir', value = os.path.join(scene_fullpath+"__translated",output_img_filename))
+        task_instance.xcom_push(key = 'product_dir', value = scene_fullpath)
+        inner_tiffs = os.path.join(scene_fullpath,"*.TIF")
+        #rm_cmd = "rm -r {}".format(inner_tiffs)
+        #delete_b_o = BashOperator(task_id="bash_operator_delete_scenes", bash_command = rm_cmd)
+        #delete_b_o.execute(context)
         return True
+
 
 class GDALPlugin(AirflowPlugin):
     name = "GDAL_plugin"
