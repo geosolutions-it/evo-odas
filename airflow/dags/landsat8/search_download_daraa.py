@@ -65,6 +65,12 @@ product_thumbnail_args = {\
 	'thumb_size_x': '64',
 	'thumb_size_y': '64'
 }
+
+metadata_args = {\
+        'metadata_xml_path':'./geo-solutions-work/evo-odas/metadata-ingestion/templates/metadata.xml',
+        'description_template':'./geo-solutions-work/evo-odas/metadata-ingestion/templates/product_abstract.html',
+        'loc_base_dir':'/efs/geoserver_data/coverages/landsat8/daraa'
+}
 # DAG definition
 daraa_dag = DAG('Search_daraa_Landsat8', 
 	description='DAG for searching Daraa AOI in Landsat8 data from scenes_list',
@@ -120,7 +126,7 @@ addo_daraa_task = GDALAddoOperator(\
 		dag = daraa_dag)
 
 product_json_task = Landsat8MTLReaderOperator(\
-		task_id = 'landsat8_product_json_task', loc_base_dir = "/efs/geoserver_data/coverages/landsat8/daraa", dag = daraa_dag)
+		task_id = 'landsat8_product_json_task', loc_base_dir = metadata_args["loc_base_dir"], metadata_xml_path = metadata_args["metadata_xml_path"] , dag = daraa_dag)
 
 product_thumbnail_task = Landsat8ThumbnailOperator(\
 		task_id = 'landsat8_product_thumbnail_task',
@@ -129,6 +135,7 @@ product_thumbnail_task = Landsat8ThumbnailOperator(\
 		dag = daraa_dag)
 
 product_description_task = Landsat8ProductDescriptionOperator(\
+                description_template = metadata_args["description_template"],
 		task_id = 'landsat8_product_description_task',
 		dag = daraa_dag)
 
