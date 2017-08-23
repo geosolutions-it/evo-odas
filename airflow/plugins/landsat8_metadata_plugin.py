@@ -7,8 +7,7 @@ from airflow.utils.decorators import apply_defaults
 import os, math, json, shutil, zipfile
 from pgmagick import Image, Geometry
 from jinja2 import Environment, FileSystemLoader, Template
-#from config.workflow_settings import description_template
-description_template = "./templates/product_description.html"
+
 
 log = logging.getLogger(__name__)
 pp = pprint.PrettyPrinter(indent=2)
@@ -18,7 +17,8 @@ to the product.zip. Also, the execute method will "xcom.push" the absolute path 
 '''
 class Landsat8MTLReaderOperator(BaseOperator):
         @apply_defaults
-        def __init__(self, loc_base_dir, *args, **kwargs):
+        def __init__(self, loc_base_dir, metadata_xml_path, *args, **kwargs):
+                self.metadata_xml_path = metadata_xml_path
                 self.loc_base_dir = loc_base_dir
                 super(Landsat8MTLReaderOperator, self).__init__(*args, **kwargs)
 
@@ -73,8 +73,10 @@ class Landsat8MTLReaderOperator(BaseOperator):
                 log.info("######### JSON FILE PATH")
                 log.info(os.path.abspath(os.path.join(product_directory,'granules.json')))
                 context['task_instance'].xcom_push(key='granules_json_abs_path', value=os.path.abspath(os.path.join(product_directory,'granules.json')))
+                log.info("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXxx")
+                log.info(os.getcwd())
 
-                shutil.copyfile("/home/moataz/geo-solutions-work/evo-odas/metadata-ingestion/test_data/metadata.xml",os.path.join(product_directory,"metadata.xml"))
+                shutil.copyfile(self.metadata_xml_path ,os.path.join(product_directory,"metadata.xml"))
                 context['task_instance'].xcom_push(key='metadata_xml_abs_path', value=os.path.join(product_directory,"metadata.xml"))
                 return True
 # regarding class granules.json need to discuss about it, done and it will be having the 11 bands 
@@ -108,14 +110,15 @@ class Landsat8ThumbnailOperator(BaseOperator):
 
 class Landsat8ProductDescriptionOperator(BaseOperator):
         @apply_defaults
-        def __init__(self, *args, **kwargs):
+        def __init__(self, description_template, *args, **kwargs):
+                self.description_template = description_template
                 super(Landsat8ProductDescriptionOperator, self).__init__(*args, **kwargs)
 
         def execute(self, context):
                 product_desc_dict = {}
                 product_directory = context['task_instance'].xcom_pull('landsat8_translate_daraa_task', key='product_dir')
                 try:
-                        shutil.copyfile(description_template, os.path.join(product_directory,"description.html"))
+                        shutil.copyfile(self.description_template, os.path.join(product_directory,"description.html"))
                 except:
                         print "Couldn't find description.html"
                 context['task_instance'].xcom_push(key='product_desc_abs_path', value=os.path.join(product_directory,"description.html"))

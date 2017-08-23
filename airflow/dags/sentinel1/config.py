@@ -36,5 +36,6 @@ sentinel2_config = {
     'enddate': enddate,
     'platformname': 'Sentinel-2',
     'filename': 'S2A_MSIL1C*',
-    'download_dir': os.path.join(download_base_dir, "Sentinel-2")
+    'download_dir': os.path.join(download_base_dir, "Sentinel-2"),
+    'granules_upload_dir': "/var/data/download/uploads"
 }
