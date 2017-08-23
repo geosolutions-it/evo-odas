@@ -66,8 +66,11 @@ class GDALWarpOperator(BaseOperator):
         else:
             if self.xk_pull_key_srcfile is None:
                 self.xk_pull_key_srcfile = 'srcdir'
-            #log.info('XCom Pull: task_ids: {} key: {} dag_id: {}'.format(self.xk_pull_task_id, self.xk_pull_key, self.xk_pull_dag_id))
+            log.debug('Fetching srcfile from XCom')
             srcfile = task_instance.xcom_pull(task_ids=self.xk_pull_task_id, key=self.xk_pull_key_srcfile, dag_id=self.xk_pull_dag_id)
+            if srcfile is None:
+                log.warn('No srcfile fetched from XCom. Nothing to do')
+                return False
         assert srcfile is not None
         log.info('srcfile: %s', srcfile)
 
@@ -81,8 +84,9 @@ class GDALWarpOperator(BaseOperator):
         else:
             if self.xk_pull_key_dstdir is None:
                 self.xk_pull_key_dstdir = 'dstdir'
-            #log.info('XCom Pull: task_ids: {} key: {} dag_id: {}'.format(self.xk_pull_task_id, self.xk_pull_key_dstdir, self.xk_pull_dag_id))
+            log.debug('Fetching dstdir from XCom')
             dstdir = task_instance.xcom_pull(task_ids=self.xk_pull_task_id, key=self.xk_pull_key_dstdir, dag_id=context['dag'].dag_id)
+            log.info('No dstdir fetched from XCom')
         # not found in XCom? use source directory
         if dstdir is None:
             log.info("using srcdir as dstdir")
@@ -122,11 +126,20 @@ class GDALAddoOperator(BaseOperator):
         self.xk_pull_key_srcfile = xk_pull_key_srcfile
         self.xk_push_key = xk_push_key
 
+        """
         levels = ''
         for i in range(1, int(math.log(max_overview_level, 2)) + 1):
             levels += str(2**i) + ' '
         self.levels = levels
-
+        """
+        level = 2
+        levels = ''
+        while(level <= int(self.max_overview_level)):
+            level = level*2
+            levels += str(level)
+            levels += ' '
+        self.levels = levels
+        super(GDALAddoOperator, self).__init__(*args, **kwargs)
         super(GDALAddoOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -167,8 +180,11 @@ class GDALAddoOperator(BaseOperator):
         else:
             if self.xk_pull_key_srcfile is None:
                 self.xk_pull_key_srcfile = 'srcdir'
-            log.info('XCom Pull: task_ids: {} key: {} dag_id: {}'.format(self.xk_pull_task_id, self.xk_pull_key_srcfile, self.xk_pull_dag_id))
+            log.debug('Fetching srcdir from XCom')
             srcfile = task_instance.xcom_pull(task_ids=self.xk_pull_task_id, key=self.xk_pull_key_srcfile, dag_id=self.xk_pull_dag_id)
+            if srcfile is None:
+                log.warn('No srcdir fetched from XCom. Nothing to do')
+                return False
         assert srcfile is not None
         log.info('srcfile: %s', srcfile)
         log.info('levels %s', self.levels)
