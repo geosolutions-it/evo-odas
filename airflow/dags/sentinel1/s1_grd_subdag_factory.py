@@ -1,6 +1,7 @@
 import logging
 from airflow.models import DAG
 from airflow.operators import BashOperator, GDALWarpOperator, GDALAddoOperator, GSAddMosaicGranule, RSYNCOperator
+from airflow.utils.trigger_rule import TriggerRule
 from sentinel1.secrets import geoserver_credentials
 
 log = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
     )
 
     addo = GDALAddoOperator(
+        trigger_rule=TriggerRule.ALL_SUCCESS,
         resampling_method = RESAMPLING_METHOD,
         max_overview_level = MAX_OVERVIEW_LEVEL,
         task_id = 'gdal_addo_' + str(i),

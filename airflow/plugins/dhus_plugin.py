@@ -1,7 +1,8 @@
 import logging
 import pprint
+import os
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
@@ -49,7 +50,10 @@ class DHUSSearchOperator(BaseOperator):
         log.info('GeoJSON: %s', self.geojson_bbox)
         log.info('Platform: %s', self.platformname)
         log.info('Filename: %s', self.filename)
-        
+
+        log.info('Now is: {}'.format( datetime.now() ))
+        log.info('6 hours ago was: {}'.format( datetime.now() - timedelta(hours=6)) )
+
         print("Execute DHUS Search.. ")
 
         # search products
