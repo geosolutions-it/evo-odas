@@ -6,10 +6,11 @@ from airflow.operators import PythonOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 from zipfile import ZipFile
-import xcom_keys as xk
+import config.xcom_keys as xk
 from sentinel1.utils.ssat1_metadata import create_procuct_zip
 
 log = logging.getLogger(__name__)
+
 
 class ZipInspector(BaseOperator):
     @apply_defaults

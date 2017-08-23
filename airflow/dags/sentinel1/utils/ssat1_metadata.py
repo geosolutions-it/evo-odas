@@ -15,7 +15,7 @@ GS_LAYER="SENTINEL1_MOSAIC"
 GS_WMS_WIDTH="768"
 GS_WMS_HEIGHT="768"
 GS_WMS_FORMAT="image/jpeg"
-WORKING_DIR='/tmp'
+WORKING_DIR='/var/data/working'
 
 try:
     from osgeo import gdal
@@ -233,8 +233,9 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
 
     # create product.zip
     log.info("Creating product zip with files: " + pprint.pformat(files))
+    path = os.path.join(working_dir, 'product.zip')
     try:
-        with ZipFile('product.zip', 'w') as z:
+        with ZipFile(path, 'w') as z:
             for f in files:
                 z.write(f, os.path.basename(f))
     except:

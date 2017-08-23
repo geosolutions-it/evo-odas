@@ -11,7 +11,7 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
 
   TARGET_SRS = 'EPSG:4326'
   TILE_SIZE = 512
-  WORKING_DIR = '/var/data/'
+  WORKING_DIR = '/var/data/working'
   OVERWRITE = True
 
   RESAMPLING_METHOD = 'average'
@@ -26,7 +26,6 @@ def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedul
   REMOTE_USR = 'airflow'
   SSH_KEY_FILE = '/root/.ssh/id_rsa'
   MOSAIC_PATH = '/efs/geoserver_data/coverages/sentinel/sentinel1/grd'
-  WORKING_DIR = '/tmp'
 
   dag = DAG(
     '%s.%s' % (parent_dag_name, child_dag_name),
