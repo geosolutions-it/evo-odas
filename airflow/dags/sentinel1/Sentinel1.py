@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta
 
 from sentinel1.config import ew_grdm_1sdv_config, geoserver_url
-from sentinel1.secrets import dhus_credentials
+from sentinel1.secrets import dhus_credentials, geoserver_credentials
 from sentinel1.s1_grd_subdag_factory import gdal_processing_sub_dag
 
 from airflow import DAG
@@ -17,7 +17,7 @@ DATE = datetime(2017, 5, 4)
 DAG_NAME = 'Sentinel1'
 SUBDAG_NAME = 'sentinel1_gdal'
 COLLECTION_NAME='SENTINEL1'
-WORKING_DIR='/tmp'
+WORKING_DIR='/var/data/working'
 
 # Settings
 default_args = {
@@ -125,7 +125,7 @@ metadata_task = S1MetadataOperator(
 )
 
 zip_path= os.path.join(WORKING_DIR , 'product.zip')
-geoserver_user_pass = dhus_credentials['username'] + ':' + dhus_credentials['password']
+geoserver_user_pass = geoserver_credentials['username'] + ':' + geoserver_credentials['password']
 curl_command='curl -v -u "{}" -XPOST -H "Content-type: application/zip" --data-binary @{}  "{}/rest/oseo/collections/{}/products"'.format(
     geoserver_user_pass, zip_path, geoserver_url, COLLECTION_NAME)
 rm_command='rm -f ' + zip_path
