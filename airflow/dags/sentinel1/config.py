@@ -40,13 +40,3 @@ ew_grdm_1sdv_config = {
     'granules_upload_dir': '/efs/geoserver_data/coverages/sentinel/sentinel1/grd/EW_GRDM_1SDV'
 }
 
-sentinel2_config = {
-    'download_max': '1',
-    'geojson_bbox': '/var/data/regions/germany.geojson',
-    'startdate': (datetime.today() - timedelta(days=10)).isoformat() + 'Z',
-    'enddate': enddate,
-    'platformname': 'Sentinel-2',
-    'filename': 'S2A_MSIL1C*',
-    'download_dir': os.path.join(download_base_dir, "Sentinel-2"),
-    'granules_upload_dir': "/var/data/download/uploads"
-}

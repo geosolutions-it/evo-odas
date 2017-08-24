@@ -149,6 +149,7 @@ class DHUSDownloadOperator(BaseOperator):
         
         log.debug("Downloaded {} products:\n{}".format(len(product_downloaded),pp.pprint(product_downloaded)))
         context['task_instance'].xcom_push(key='downloaded_products', value=product_downloaded)
+        context['task_instance'].xcom_push(key='downloaded_products_paths', value=' '.join(product_downloaded.keys()))
         return True
 
 class DHUSPlugin(AirflowPlugin):
