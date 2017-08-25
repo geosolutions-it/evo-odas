@@ -73,7 +73,7 @@ class Sentinel2MetadataOperator(BaseOperator):
                 "timeStart": s2_product.product_start_time,
                 "timeEnd": s2_product.product_stop_time,
                 "originalPackageLocation": None, "thumbnailURL": None,
-                "quicklookURL": None, "eop:parentIdentifier": None,
+                "quicklookURL": None, "eop:parentIdentifier": "SENTINEL2",
                 "eop:productionStatus": None, "eop:acquisitionType": None,
                 "eop:orbitNumber": s2_product.sensing_orbit_number, "eop:orbitDirection": s2_product.sensing_orbit_direction,
                 "eop:track": None, "eop:frame": None, "eop:swathIdentifier": None,

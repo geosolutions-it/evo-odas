@@ -42,7 +42,7 @@ class Landsat8MTLReaderOperator(BaseOperator):
                 final_metadata_dict = {"type": "Feature", "geometry": {"type":"Polygon","coordinates":[[[float(metadata_dictionary["CORNER_UL_LAT_PRODUCT"]), float(metadata_dictionary["CORNER_UL_LON_PRODUCT"])],[float(metadata_dictionary["CORNER_UR_LAT_PRODUCT"]),float(metadata_dictionary["CORNER_UR_LON_PRODUCT"])],[float(metadata_dictionary["CORNER_LL_LAT_PRODUCT"]),float(metadata_dictionary["CORNER_LL_LON_PRODUCT"])],[float(metadata_dictionary["CORNER_LR_LAT_PRODUCT"]),float(metadata_dictionary["CORNER_LR_LON_PRODUCT"])],[float(metadata_dictionary["CORNER_UL_LAT_PRODUCT"]), float(metadata_dictionary["CORNER_UL_LON_PRODUCT"])]]]},
         "properties": {"eop:identifier" : metadata_dictionary["LANDSAT_PRODUCT_ID"][1:-1],
         "timeStart" : metadata_dictionary["SCENE_CENTER_TIME"], "timeEnd" : metadata_dictionary["SCENE_CENTER_TIME"], "originalPackageLocation" : None, "thumbnailURL" : None, "quicklookURL" : None,
-        "eop:parentIdentifier" : None, "eop:productionStatus" : None, "eop:acquisitionType" : None, "eop:orbitNumber" : None,
+        "eop:parentIdentifier" : "LANDSAT8", "eop:productionStatus" : None, "eop:acquisitionType" : None, "eop:orbitNumber" : None,
         "eop:orbitDirection" : None, "eop:track" : None, "eop:frame" : None, "eop:swathIdentifier" : None, 
         "opt:cloudCover" : metadata_dictionary["CLOUD_COVER"],
         "opt:snowCover" : None,	"eop:productQualityStatus" : None, "eop:productQualityDegradationStatus" : None,
