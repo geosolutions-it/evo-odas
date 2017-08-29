@@ -22,5 +22,7 @@ sentinel2_config = {
     'platformname': 'Sentinel-2',
     'filename': 'S2A_MSIL1C*',
     'download_dir': os.path.join(download_base_dir, "Sentinel-2"),
-    'granules_upload_dir': "/var/data/download/uploads"
+    'granules_upload_dir': "/var/data/download/uploads",
+    'geometric_info': "{https://psd-12.sentinel2.eo.esa.int/PSD/S2_PDI_Level-1C_Tile_Metadata.xsd}Geometric_Info",
+    'bands_res':{'10':("B02","B03","B04","B08"),'20':("B05","B06","B07","B8A","B11","B12"),'60':("B01","B09","B10")}
 }

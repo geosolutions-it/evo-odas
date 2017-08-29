@@ -1,4 +1,4 @@
-from airflow.operators import BaseOperator
+from airflow.operators import BaseOperator, BashOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 import logging
@@ -8,6 +8,7 @@ log = logging.getLogger(__name__)
 from pgmagick import Image, Blob
 import zipfile, json
 import shutil
+import xml.etree.ElementTree as ET
 
 
 ''' This class will create a compressed, low resolution, square shaped thumbnail for the
@@ -54,7 +55,9 @@ class Sentinel2ThumbnailOperator(BaseOperator):
 
 class Sentinel2MetadataOperator(BaseOperator):
     @apply_defaults
-    def __init__(self, *args, **kwargs):
+    def __init__(self, geometric_info, bands_res, *args, **kwargs):
+        self.geometric_info = geometric_info
+        self.bands_res = bands_res
         super(Sentinel2MetadataOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -117,8 +120,55 @@ class Sentinel2MetadataOperator(BaseOperator):
             with open('granules.json', 'w') as granules_outfile:
                 json.dump(final_granules_dict, granules_outfile)
             product_zipf.write("granules.json","product/granules.json")
+            product_zipf.close()
+        archives = context['task_instance'].xcom_pull('dhus_download_task', key='downloaded_products_paths')
+        archives_list = archives.split()
+        log.info(archives)
+        self.custom_archived = []
+        for archive_line in archives_list:
+            jp2_files_paths = []
+            files_to_archive = []
+            archive_path = archive_line
+            archived_product = zipfile.ZipFile(archive_line)
+            for file_name in archived_product.namelist():
+                if file_name.endswith('.jp2') and not file_name.endswith('PVI.jp2'):
+                    archived_product.extract(file_name, archive_path.strip(".zip"))
+                    jp2_files_paths.append(os.path.join(archive_path.strip(".zip"),file_name))
+                if file_name.endswith('MTD_TL.xml'):
+                    archived_product.extract(file_name, archive_path.strip(".zip"))
+                    mtd_tl_xml = os.path.join(archive_path.strip(".zip"),file_name)
+            tree = ET.parse(mtd_tl_xml)
+            root = tree.getroot()
+            geometric_info = root.find(self.geometric_info)
+            tile_geocoding = geometric_info.find("Tile_Geocoding")
+            tfw_files = []
+            prj_files = []
+            for jp2_file in jp2_files_paths:
+                tfw_name = os.path.splitext(jp2_file)[0]
+                gdalinfo_cmd = "gdalinfo {} > {}".format(jp2_file, tfw_name+".prj")
+                gdalinfo_BO = BashOperator(task_id="bash_operator_gdalinfo_{}".format(tfw_name[-3:]), bash_command = gdalinfo_cmd)
+                gdalinfo_BO.execute(context)
+                sed_cmd = "sed -i -e '1,4d;29,37d' {}".format(tfw_name+".prj")
+                sed_BO = BashOperator(task_id="bash_operator_sed_{}".format(tfw_name[-3:]), bash_command = sed_cmd)
+                sed_BO.execute(context)
+                prj_files.append(tfw_name+".prj")
+                tfw_file = open(tfw_name+".tfw","w")
+                tfw_files.append(tfw_name+".tfw")
+                for key,value in  self.bands_res.items():
+                    if tfw_name[-3:] in value:
+                        element = key
+                geo_position = tile_geocoding.find('.//Geoposition[@resolution="{}"]'.format(element))
+                tfw_file.write(geo_position.find("XDIM").text + "\n" + "0" + "\n" + "0" +"\n")
+                tfw_file.write(geo_position.find("YDIM").text + "\n")
+                tfw_file.write(geo_position.find("ULX").text + "\n")
+                tfw_file.write(geo_position.find("ULY").text + "\n")
+            files_to_archive.extend(prj_files + tfw_files + jp2_files_paths)
+            zip_with_prj_tfw = zipfile.ZipFile(archive_line.rsplit('.',1)[0]+"__.zip","a")
+            for item in files_to_archive:
+                zip_with_prj_tfw.write(item, item.rsplit("/",1)[1])
+            self.custom_archived.append(archive_line.rsplit('.',1)[0]+"__.zip")
         context['task_instance'].xcom_push(key='downloaded_products', value=self.downloaded_products)
-
+        context['task_instance'].xcom_push(key='downloaded_products_with_tfwprj', value=' '.join(self.custom_archived))
 
 class Sentinel2ProductZipOperator(BaseOperator):
 

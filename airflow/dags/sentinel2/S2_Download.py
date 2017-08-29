@@ -67,6 +67,18 @@ archive_task = RSYNCOperator(task_id="sentinel2_upload_granules",
                              xk_pull_key = 'downloaded_products_paths',
                              dag=dag)
 
+# Archive Sentinel-2 RSYNC with .prj and .tfw files Task Operator
+archive_tfwprj_task = RSYNCOperator(task_id="sentinel2_upload_granules_with_tfwprj", 
+                             host = "localhost", 
+                             remote_usr = "moataz", 
+                             ssh_key_file = "/usr/local/airflow/id_rsa", 
+                             remote_dir = sentinel2_config['granules_upload_dir'], 
+                             xk_pull_dag_id = 'S2_Download', 
+                             xk_pull_task_id = 'dhus_metadata_task', 
+                             xk_pull_key = 'downloaded_products_with_tfwprj',
+                             dag=dag)
+
+
 # Sentinel-2 Create thumbnail Operator
 thumbnail_task = Sentinel2ThumbnailOperator(task_id = 'dhus_thumbnail_task',
                                             thumb_size_x = '64',
@@ -74,6 +86,8 @@ thumbnail_task = Sentinel2ThumbnailOperator(task_id = 'dhus_thumbnail_task',
                                             dag=dag)
 # Sentinel-2 Metadata Operator
 metadata_task = Sentinel2MetadataOperator(task_id = 'dhus_metadata_task',
+                                          geometric_info = sentinel2_config['geometric_info'],
+                                          bands_res = sentinel2_config['bands_res'],
                                           dag = dag)
 
 # Sentinel-2 Product.zip Operator
@@ -87,4 +101,4 @@ product_zip_task = Sentinel2ProductZipOperator(task_id = 'dhus_product_zip_task'
                                                placeholders = placeholders_list,
                                                dag = dag)
 
-search_task >> download_task >> archive_task >> thumbnail_task >> metadata_task >> product_zip_task
+search_task >> download_task >> archive_task >> thumbnail_task >> metadata_task >> archive_tfwprj_task >> product_zip_task
