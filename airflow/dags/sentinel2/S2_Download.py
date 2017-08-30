@@ -86,7 +86,6 @@ thumbnail_task = Sentinel2ThumbnailOperator(task_id = 'dhus_thumbnail_task',
                                             dag=dag)
 # Sentinel-2 Metadata Operator
 metadata_task = Sentinel2MetadataOperator(task_id = 'dhus_metadata_task',
-                                          geometric_info = sentinel2_config['geometric_info'],
                                           bands_res = sentinel2_config['bands_res'],
                                           dag = dag)
 

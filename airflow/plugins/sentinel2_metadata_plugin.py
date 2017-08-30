@@ -55,8 +55,7 @@ class Sentinel2ThumbnailOperator(BaseOperator):
 
 class Sentinel2MetadataOperator(BaseOperator):
     @apply_defaults
-    def __init__(self, geometric_info, bands_res, *args, **kwargs):
-        self.geometric_info = geometric_info
+    def __init__(self, bands_res, *args, **kwargs):
         self.bands_res = bands_res
         super(Sentinel2MetadataOperator, self).__init__(*args, **kwargs)
 
@@ -139,7 +138,7 @@ class Sentinel2MetadataOperator(BaseOperator):
                     mtd_tl_xml = os.path.join(archive_path.strip(".zip"),file_name)
             tree = ET.parse(mtd_tl_xml)
             root = tree.getroot()
-            geometric_info = root.find(self.geometric_info)
+            geometric_info = root.find(root.tag.split('}', 1)[0]+"}Geometric_Info")
             tile_geocoding = geometric_info.find("Tile_Geocoding")
             tfw_files = []
             prj_files = []
