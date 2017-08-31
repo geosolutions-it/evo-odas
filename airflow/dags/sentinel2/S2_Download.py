@@ -58,9 +58,9 @@ download_task = DHUSDownloadOperator(task_id = 'dhus_download_task',
 
 # Archive Sentinel-2 RSYNC Task Operator
 archive_task = RSYNCOperator(task_id="sentinel2_upload_granules", 
-                             host = "localhost", 
-                             remote_usr = "moataz", 
-                             ssh_key_file = "/usr/local/airflow/id_rsa", 
+                             host = sentinel2_config['rsync_hostname'],
+                             remote_usr = sentinel2_config['rsync_username'],
+                             ssh_key_file = sentinel2_config['rsync_ssh_key'],
                              remote_dir = sentinel2_config['granules_upload_dir'], 
                              xk_pull_dag_id = 'S2_Download', 
                              xk_pull_task_id = 'dhus_download_task', 
@@ -69,9 +69,9 @@ archive_task = RSYNCOperator(task_id="sentinel2_upload_granules",
 
 # Archive Sentinel-2 RSYNC with .prj and .tfw files Task Operator
 archive_tfwprj_task = RSYNCOperator(task_id="sentinel2_upload_granules_with_tfwprj", 
-                             host = "localhost", 
-                             remote_usr = "moataz", 
-                             ssh_key_file = "/usr/local/airflow/id_rsa", 
+                             host = sentinel2_config['rsync_hostname'],
+                             remote_usr = sentinel2_config['rsync_username'],
+                             ssh_key_file = sentinel2_config['rsync_ssh_key'],
                              remote_dir = sentinel2_config['granules_upload_dir'], 
                              xk_pull_dag_id = 'S2_Download', 
                              xk_pull_task_id = 'dhus_metadata_task', 
@@ -95,7 +95,7 @@ placeholders_list = [os.path.join(base_dir,"metadata.xml"), os.path.join(base_di
 generated_files_list = ['product/product.json','product/granules.json','product/thumbnail.jpeg']
 
 product_zip_task = Sentinel2ProductZipOperator(task_id = 'dhus_product_zip_task',
-                                               target_dir = "/var/data/download/Sentinel-2",
+                                               target_dir = sentinel2_config['product_zip_target_dir'],
                                                generated_files = generated_files_list,
                                                placeholders = placeholders_list,
                                                dag = dag)
