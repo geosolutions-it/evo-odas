@@ -188,11 +188,13 @@ class Sentinel2ProductZipOperator(BaseOperator):
                     zf.extract(item_file, path=dirname)
             for ph in self.placeholders:
                 shutil.copyfile(ph, os.path.join(dirname, os.path.join("product",ph.split("/")[-1])))
-            product_zip = zipfile.ZipFile(os.path.join(zipf.strip(".zip"), "product.zip"), 'a')
+            product_zip_path = os.path.join(os.path.join(zipf.strip(".zip"), "product.zip"))
+            product_zip = zipfile.ZipFile(product_zip_path , 'a')
             for item in os.listdir(os.path.join(zipf.strip(".zip"),"product")):
                 print os.path.join(zipf.strip(".zip"),"product",item)
                 product_zip.write(os.path.join(zipf.strip(".zip"),"product",item), item)
             product_zip.close()
+            context['task_instance'].xcom_push(key='product_zip_path', value=product_zip_path)
 
 class SENTINEL2Plugin(AirflowPlugin):
     name = "sentinel2_plugin"
