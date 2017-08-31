@@ -95,7 +95,7 @@ placeholders_list = [os.path.join(base_dir,"metadata.xml"), os.path.join(base_di
 generated_files_list = ['product/product.json','product/granules.json','product/thumbnail.jpeg']
 
 product_zip_task = Sentinel2ProductZipOperator(task_id = 'dhus_product_zip_task',
-                                               target_dir = "/var/data/download/Sentinel-2",
+                                               target_dir = sentinel2_config['product_zip_target_dir'],
                                                generated_files = generated_files_list,
                                                placeholders = placeholders_list,
                                                dag = dag)
