@@ -80,15 +80,15 @@ metadata_task = Sentinel2MetadataOperator(task_id = 'dhus_metadata_task',
                                           remote_dir = sentinel2_config['granules_upload_dir'],
                                           dag = dag)
 
-# Archive Sentinel-2 RSYNC with .prj and .tfw files Task Operator
-archive_tfwprj_task = RSYNCOperator(task_id="sentinel2_upload_granules_with_tfwprj", 
+# Archive Sentinel-2 RSYNC with .prj and .wld files Task Operator
+archive_wldprj_task = RSYNCOperator(task_id="sentinel2_upload_granules_with_wldprj", 
                              host = "localhost", 
                              remote_usr = "moataz", 
                              ssh_key_file = "/usr/local/airflow/id_rsa", 
                              remote_dir = sentinel2_config['granules_upload_dir'], 
                              xk_pull_dag_id = 'Sentinel2',
                              xk_pull_task_id = 'dhus_metadata_task', 
-                             xk_pull_key = 'downloaded_products_with_tfwprj',
+                             xk_pull_key = 'downloaded_products_with_wldprj',
                              dag=dag)
 
 # Sentinel-2 Product.zip Operator.
@@ -103,4 +103,4 @@ product_zip_task = Sentinel2ProductZipOperator(task_id = 'product_zip_task',
                                                placeholders = placeholders_list,
                                                dag = dag)
 
-search_task >> download_task >> archive_task >> thumbnail_task >> metadata_task >> archive_tfwprj_task >> product_zip_task
+search_task >> download_task >> archive_task >> thumbnail_task >> metadata_task >> archive_wldprj_task >> product_zip_task

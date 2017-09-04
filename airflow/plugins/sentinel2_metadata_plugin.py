@@ -54,7 +54,7 @@ class Sentinel2ThumbnailOperator(BaseOperator):
 
 '''
 This class is creating the product.zip contents and passing the absolute path per every file so that the Sentinel2ProductZipOperator can generate the product.zip file.
-Also, this class is creating the .tfw and .prj files which are required by Geoserver in order to be publish the granules successfully. 
+Also, this class is creating the .wld and .prj files which are required by Geoserver in order to be publish the granules successfully. 
 '''
 class Sentinel2MetadataOperator(BaseOperator):
     @apply_defaults
@@ -148,32 +148,32 @@ class Sentinel2MetadataOperator(BaseOperator):
             root = tree.getroot()
             geometric_info = root.find(root.tag.split('}', 1)[0]+"}Geometric_Info")
             tile_geocoding = geometric_info.find("Tile_Geocoding")
-            tfw_files = []
+            wld_files = []
             prj_files = []
             for jp2_file in jp2_files_paths:
-                tfw_name = os.path.splitext(jp2_file)[0]
-                gdalinfo_cmd = "gdalinfo {} > {}".format(jp2_file, tfw_name+".prj")
-                gdalinfo_BO = BashOperator(task_id="bash_operator_gdalinfo_{}".format(tfw_name[-3:]), bash_command = gdalinfo_cmd)
+                wld_name = os.path.splitext(jp2_file)[0]
+                gdalinfo_cmd = "gdalinfo {} > {}".format(jp2_file, wld_name+".prj")
+                gdalinfo_BO = BashOperator(task_id="bash_operator_gdalinfo_{}".format(wld_name[-3:]), bash_command = gdalinfo_cmd)
                 gdalinfo_BO.execute(context)
-                sed_cmd = "sed -i -e '1,4d;29,37d' {}".format(tfw_name+".prj")
-                sed_BO = BashOperator(task_id="bash_operator_sed_{}".format(tfw_name[-3:]), bash_command = sed_cmd)
+                sed_cmd = "sed -i -e '1,4d;29,37d' {}".format(wld_name+".prj")
+                sed_BO = BashOperator(task_id="bash_operator_sed_{}".format(wld_name[-3:]), bash_command = sed_cmd)
                 sed_BO.execute(context)
-                prj_files.append(tfw_name+".prj")
-                tfw_file = open(tfw_name+".tfw","w")
-                tfw_files.append(tfw_name+".tfw")
+                prj_files.append(wld_name+".prj")
+                wld_file = open(wld_name+".wld","w")
+                wld_files.append(wld_name+".wld")
                 for key,value in  self.bands_res.items():
-                    if tfw_name[-3:] in value:
+                    if wld_name[-3:] in value:
                         element = key
                 geo_position = tile_geocoding.find('.//Geoposition[@resolution="{}"]'.format(element))
-                tfw_file.write(geo_position.find("XDIM").text + "\n" + "0" + "\n" + "0" +"\n")
-                tfw_file.write(geo_position.find("YDIM").text + "\n")
-                tfw_file.write(geo_position.find("ULX").text + "\n")
-                tfw_file.write(geo_position.find("ULY").text + "\n")
-            files_to_archive.extend(prj_files + tfw_files + jp2_files_paths)
+                wld_file.write(geo_position.find("XDIM").text + "\n" + "0" + "\n" + "0" +"\n")
+                wld_file.write(geo_position.find("YDIM").text + "\n")
+                wld_file.write(geo_position.find("ULX").text + "\n")
+                wld_file.write(geo_position.find("ULY").text + "\n")
+            files_to_archive.extend(prj_files + wld_files + jp2_files_paths)
             parent_dir = os.path.dirname(jp2_files_paths[0])
             self.custom_archived.append(os.path.dirname(parent_dir))
         context['task_instance'].xcom_push(key='downloaded_products', value=self.downloaded_products)
-        context['task_instance'].xcom_push(key='downloaded_products_with_tfwprj', value=' '.join(self.custom_archived))
+        context['task_instance'].xcom_push(key='downloaded_products_with_wldprj', value=' '.join(self.custom_archived))
 
 
 '''
