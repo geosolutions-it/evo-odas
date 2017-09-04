@@ -53,7 +53,7 @@ search_daraa_task = Landsat8SearchOperator(
 download_daraa_task = Landsat8DownloadOperator(
     task_id='landsat8_download_daraa_task',
     download_dir="/var/data/download",
-    number_of_bands=1,
+    bands=[1],
     dag=daraa_dag
 )
 

@@ -1,13 +1,12 @@
 from datetime import datetime
 from datetime import timedelta
+from itertools import chain
 import logging
 import os
 import psycopg2
 import urllib
 
-from airflow import DAG
 from airflow.operators import BaseOperator
-from airflow.operators import BashOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 
@@ -60,7 +59,7 @@ class Landsat8SearchOperator(BaseOperator):
         )
         cursor.execute(sql_stmt)
         result_set = cursor.fetchall()
-        print result_set
+        print(result_set)
         log.info(
             "Found {} product with {} scene id, available for download "
             "through {} ".format(result_set[0][0],
@@ -75,82 +74,47 @@ class Landsat8SearchOperator(BaseOperator):
 class Landsat8DownloadOperator(BaseOperator):
 
     @apply_defaults
-    def __init__(self, download_dir, number_of_bands=None,
+    def __init__(self, download_dir, bands=None,
                  download_timeout=timedelta(hours=1),
                  *args, **kwargs):
-        self.download_dir = download_dir
-        self.number_of_bands = number_of_bands
-        log.info("----------------------------------------------------")
-        print("Initialization of Landsat8 Download ... ")
-        log.info('Download Directory: %s', self.download_dir)
         super(Landsat8DownloadOperator, self).__init__(
             execution_timeout=download_timeout, *args, **kwargs)
+        self.download_dir = download_dir
+        self.bands = [int(b) for b in bands] if bands is not None else [1]
 
     def execute(self, context):
-        log.info("#######################")
-        log.info("## Landsat8 Download ##")
-        log.info('Download Directory: %s', self.download_dir)
-        print("Execute Landsat8 Download ... ")
-        scene_url = context['task_instance'].xcom_pull(
+        task_inputs = context["task_instance"].xcom_pull(
             'landsat8_search_daraa_task',
             key='searched_products'
         )
-        log.info("#######################")
-        log.info(self.download_dir+scene_url[1])
-        if os.path.isdir(self.download_dir+scene_url[1]):
-            pass
-        else:
-            create_dir = BashOperator(
-                task_id="bash_operator_translate_daraa",
-                bash_command="mkdir {}".format(self.download_dir+scene_url[1])
-            )
-            create_dir.execute(context)
-        counter = 1
+        product_id, entity_id, download_url = task_inputs
+        target_dir = self.download_dir + entity_id
         try:
-            urllib.urlretrieve(
-                os.path.join(
-                    scene_url[2].replace(
-                        "index.html",
-                        scene_url[0]+"_MTL.txt"
-                    )
-                ),
-                os.path.join(
-                    self.download_dir+scene_url[1],
-                    scene_url[0]+'_MTL.txt'
-                )
+            os.makedirs(target_dir)
+        except OSError as exc:
+            if exc.errno == 17:  # directory already exists
+                pass
+        file_endings = chain(
+            ("MTL.txt", "thumb_small.jpg"),
+            ("B{}.TIF".format(i) for i in self.bands)
+        )
+        # TODO: Download files in parallel instead of sequentially
+        for ending in file_endings:
+            url = download_url.replace(
+                "index.html",
+                "{id}_{ending}".format(id=product_id, ending=ending)
             )
-            urllib.urlretrieve(
-                os.path.join(
-                    scene_url[2].replace(
-                        "index.html",
-                        scene_url[0]+"_thumb_small.jpg"
-                    )
-                ),
-                os.path.join(
-                    self.download_dir+scene_url[1],
-                    scene_url[0]+'_thumb_small.jpg'
-                )
+            target_path = os.path.join(
+                self.download_dir, entity_id,
+                "{}_{}".format(product_id, ending)
             )
-            while counter <= self.number_of_bands:
-                urllib.urlretrieve(
-                    scene_url[2].replace(
-                        "index.html",
-                        scene_url[0]+"_B"+str(counter)+".TIF"),
-                    os.path.join(
-                        self.download_dir+scene_url[1],
-                        scene_url[0]+'_B'+str(counter)+'.TIF'
-                    )
-                )
-                counter += 1
-        except Exception:
-            log.info(
-                "EXCEPTION: ### Download not completed successfully, please "
-                "check all the scenes, mtl and small jpg ###"
-            )
-            context['task_instance'].xcom_push(
-                key='scene_fullpath',
-                value=self.download_dir+scene_url[1]
-            )
+            try:
+                urllib.urlretrieve(url, target_path)
+            except Exception:
+                log.exception(
+                    msg="EXCEPTION: ### Error downloading {}".format(ending))
+        context['task_instance'].xcom_push(key='scene_fullpath',
+                                           value=target_dir)
         return True
 
 
