@@ -52,11 +52,15 @@ class Sentinel2ThumbnailOperator(BaseOperator):
             context['task_instance'].xcom_push(key='ids', value=ids)
             #return os.path.join(self.downloaded_products,"thumbnail.jpeg")
 
-
+'''
+This class is creating the product.zip contents and passing the absolute path per every file so that the Sentinel2ProductZipOperator can generate the product.zip file.
+Also, this class is creating the .wld and .prj files which are required by Geoserver in order to be publish the granules successfully. 
+'''
 class Sentinel2MetadataOperator(BaseOperator):
     @apply_defaults
-    def __init__(self, bands_res, *args, **kwargs):
+    def __init__(self, bands_res, remote_dir, *args, **kwargs):
         self.bands_res = bands_res
+        self.remote_dir = remote_dir
         super(Sentinel2MetadataOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -95,22 +99,26 @@ class Sentinel2MetadataOperator(BaseOperator):
                 "eop:illuminationAzimuthAngle": None,
                 "eop:illuminationZenithAngle": None,
                 "eop:illuminationElevationAngle": None, "eop:resolution": None}}
-                features_list = []
-                granule_counter = 1
-                for i in range(1,13):
+                for i in self.bands_res.values():
+                    features_list = []
+                    granule_counter = 1
                     for granule in s2_product.granules:
                         coords = []
                         x = [[[m.replace(" ", ",")] for m in str(granule.footprint).replace(", ", ",").partition('((')[-1].rpartition('))')[0].split(",")]]
                         for item in x[0]:
                             [x, y] = item[0].split(",")
                             coords.append([float(x), float(y)])
-                        features_list.append({"type": "Feature", "geometry": { "type": "Polygon", "coordinates": [coords]},
-                        "properties": {
-                        "location":granule.band_path(granule_counter)
-                        },
-                        "id": "GRANULE.{}".format(granule_counter)
-                        })
-                        granule_counter+=1
+                        zipped_product = zipfile.ZipFile(product)
+                        for file_name in zipped_product.namelist():
+                            if file_name.endswith('.jp2') and not file_name.endswith('PVI.jp2'):
+                                 log.info("file_name")
+                                 log.info(file_name)
+                                 features_list.append({"type": "Feature", "geometry": { "type": "Polygon", "coordinates": [coords]},\
+                        "properties": {\
+                        "location":os.path.join(self.remote_dir, granule.granule_path.rsplit("/")[-1], "IMG_DATA", file_name.rsplit("/")[-1])\
+                        },\
+                        "id": "GRANULE.{}".format(granule_counter)})
+                                 granule_counter+=1
             final_granules_dict = {"type": "FeatureCollection", "features": features_list}
             with open('product.json', 'w') as product_outfile:
                 json.dump(final_metadata_dict, product_outfile)
@@ -140,35 +148,38 @@ class Sentinel2MetadataOperator(BaseOperator):
             root = tree.getroot()
             geometric_info = root.find(root.tag.split('}', 1)[0]+"}Geometric_Info")
             tile_geocoding = geometric_info.find("Tile_Geocoding")
-            tfw_files = []
+            wld_files = []
             prj_files = []
             for jp2_file in jp2_files_paths:
-                tfw_name = os.path.splitext(jp2_file)[0]
-                gdalinfo_cmd = "gdalinfo {} > {}".format(jp2_file, tfw_name+".prj")
-                gdalinfo_BO = BashOperator(task_id="bash_operator_gdalinfo_{}".format(tfw_name[-3:]), bash_command = gdalinfo_cmd)
+                wld_name = os.path.splitext(jp2_file)[0]
+                gdalinfo_cmd = "gdalinfo {} > {}".format(jp2_file, wld_name+".prj")
+                gdalinfo_BO = BashOperator(task_id="bash_operator_gdalinfo_{}".format(wld_name[-3:]), bash_command = gdalinfo_cmd)
                 gdalinfo_BO.execute(context)
-                sed_cmd = "sed -i -e '1,4d;29,37d' {}".format(tfw_name+".prj")
-                sed_BO = BashOperator(task_id="bash_operator_sed_{}".format(tfw_name[-3:]), bash_command = sed_cmd)
+                sed_cmd = "sed -i -e '1,4d;29,37d' {}".format(wld_name+".prj")
+                sed_BO = BashOperator(task_id="bash_operator_sed_{}".format(wld_name[-3:]), bash_command = sed_cmd)
                 sed_BO.execute(context)
-                prj_files.append(tfw_name+".prj")
-                tfw_file = open(tfw_name+".tfw","w")
-                tfw_files.append(tfw_name+".tfw")
+                prj_files.append(wld_name+".prj")
+                wld_file = open(wld_name+".wld","w")
+                wld_files.append(wld_name+".wld")
                 for key,value in  self.bands_res.items():
-                    if tfw_name[-3:] in value:
+                    if wld_name[-3:] in value:
                         element = key
                 geo_position = tile_geocoding.find('.//Geoposition[@resolution="{}"]'.format(element))
-                tfw_file.write(geo_position.find("XDIM").text + "\n" + "0" + "\n" + "0" +"\n")
-                tfw_file.write(geo_position.find("YDIM").text + "\n")
-                tfw_file.write(geo_position.find("ULX").text + "\n")
-                tfw_file.write(geo_position.find("ULY").text + "\n")
-            files_to_archive.extend(prj_files + tfw_files + jp2_files_paths)
-            zip_with_prj_tfw = zipfile.ZipFile(archive_line.rsplit('.',1)[0]+"__.zip","a")
-            for item in files_to_archive:
-                zip_with_prj_tfw.write(item, item.rsplit("/",1)[1])
-            self.custom_archived.append(archive_line.rsplit('.',1)[0]+"__.zip")
+                wld_file.write(geo_position.find("XDIM").text + "\n" + "0" + "\n" + "0" +"\n")
+                wld_file.write(geo_position.find("YDIM").text + "\n")
+                wld_file.write(geo_position.find("ULX").text + "\n")
+                wld_file.write(geo_position.find("ULY").text + "\n")
+            files_to_archive.extend(prj_files + wld_files + jp2_files_paths)
+            parent_dir = os.path.dirname(jp2_files_paths[0])
+            self.custom_archived.append(os.path.dirname(parent_dir))
         context['task_instance'].xcom_push(key='downloaded_products', value=self.downloaded_products)
-        context['task_instance'].xcom_push(key='downloaded_products_with_tfwprj', value=' '.join(self.custom_archived))
+        context['task_instance'].xcom_push(key='downloaded_products_with_wldprj', value=' '.join(self.custom_archived))
 
+
+'''
+This class is receiving the meta data files paths from the Sentinel2MetadataOperator then creates the product.zip
+Later, this class will pass the path of the created product.zip to the next task to publish on Geoserver.
+'''
 class Sentinel2ProductZipOperator(BaseOperator):
 
     @apply_defaults

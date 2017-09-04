@@ -90,7 +90,7 @@ class DHUSDownloadOperator(BaseOperator):
             dhus_user,
             dhus_pass,
             download_dir,
-            download_timeout=timedelta(hours=1),
+            download_timeout=timedelta(hours=5),
             download_max=100,
             product_ids=None,
             *args, **kwargs):
