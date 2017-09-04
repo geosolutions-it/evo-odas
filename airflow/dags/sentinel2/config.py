@@ -22,9 +22,6 @@ sentinel2_config = {
     'platformname': 'Sentinel-2',
     'filename': 'S2A_MSIL1C*',
     'download_dir': os.path.join(download_base_dir, "Sentinel-2"),
-    'rsync_hostname': 'geoserver.cloudsdi.geo-solutions.it',
-    'rsync_username': 'ec2-user',
-    'rsync_ssh_key' : '/usr/local/airflow/id_rsa'
     'granules_upload_dir': "/var/data/sentinel2/uploads",
     'bands_res':{'10':("B02","B03","B04","B08"),'20':("B05","B06","B07","B8A","B11","B12"),'60':("B01","B09","B10")},
     'product_zip_target_dir':"/var/data/download/Sentinel-2", 

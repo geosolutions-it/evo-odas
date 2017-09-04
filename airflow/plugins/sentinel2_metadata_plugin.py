@@ -115,8 +115,7 @@ class Sentinel2MetadataOperator(BaseOperator):
                                  log.info(file_name)
                                  features_list.append({"type": "Feature", "geometry": { "type": "Polygon", "coordinates": [coords]},\
                         "properties": {\
-                        "location":os.path.join(self.remote_dir, granule.granule_path.rsplit("/")[-1], "IMG_DATA", file_name.rsplit("/")[-1])\
-                        },\
+                        "location":os.path.join(self.remote_dir, granule.granule_path.rsplit("/")[-1], "IMG_DATA", file_name.rsplit("/")[-1])},\
                         "id": "GRANULE.{}".format(granule_counter)})
                                  granule_counter+=1
             final_granules_dict = {"type": "FeatureCollection", "features": features_list}
