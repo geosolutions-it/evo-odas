@@ -53,15 +53,16 @@ class Landsat8SearchOperator(BaseOperator):
 
 
 class Landsat8DownloadOperator(BaseOperator):
+    """Download a single Landsat8 file."""
 
     @apply_defaults
-    def __init__(self, download_dir, area, get_inputs_from,
+    def __init__(self, download_dir, get_inputs_from, url_fragment,
                  download_timeout=timedelta(hours=1), *args, **kwargs):
         super(Landsat8DownloadOperator, self).__init__(
             execution_timeout=download_timeout, *args, **kwargs)
         self.download_dir = download_dir
-        self.area = area
         self.get_inputs_from = get_inputs_from
+        self.url_fragment = url_fragment
 
     def execute(self, context):
         task_inputs = context["task_instance"].xcom_pull(self.get_inputs_from)
@@ -72,28 +73,20 @@ class Landsat8DownloadOperator(BaseOperator):
         except OSError as exc:
             if exc.errno == 17:  # directory already exists
                 pass
-        file_endings = chain(
-            ("MTL.txt", "thumb_small.jpg"),
-            ("B{}.TIF".format(i) for i in self.bands)
+        url = download_url.replace(
+            "index.html", "{}_{}".format(product_id, self.url_fragment))
+        target_path = os.path.join(
+            target_dir,
+            "{}_{}".format(product_id, self.url_fragment)
         )
-        # TODO: Download files in parallel instead of sequentially
-        downloaded = []
-        for ending in file_endings:
-            url = download_url.replace(
-                "index.html",
-                "{id}_{ending}".format(id=product_id, ending=ending)
-            )
-            target_path = os.path.join(
-                target_dir,
-                "{}_{}".format(product_id, ending)
-            )
-            try:
-                urllib.urlretrieve(url, target_path)
-                downloaded.append(target_path)
-            except Exception:
-                log.exception(
-                    msg="EXCEPTION: ### Error downloading {}".format(ending))
-        return downloaded
+        try:
+            urllib.urlretrieve(url, target_path)
+        except Exception as exc:
+            log.exception(
+                msg="Error downloading {}".format(self.url_fragment))
+            raise
+        else:
+            return target_path
 
 
 class SearchDownloadDaraaPlugin(AirflowPlugin):
