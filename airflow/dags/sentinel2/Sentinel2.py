@@ -58,9 +58,9 @@ download_task = DHUSDownloadOperator(task_id = 'dhus_download_task',
 
 # Archive Sentinel-2 RSYNC Task Operator
 archive_task = RSYNCOperator(task_id="sentinel2_upload_granules", 
-                             host = "localhost", 
-                             remote_usr = "moataz", 
-                             ssh_key_file = "/usr/local/airflow/id_rsa", 
+                             host = sentinel2_config["rsync_hostname"], 
+                             remote_usr = sentinel2_config["rsync_username"],
+                             ssh_key_file = sentinel2_config["rsync_ssh_key"], 
                              remote_dir = sentinel2_config['granules_upload_dir'], 
                              xk_pull_dag_id = 'Sentinel2', 
                              xk_pull_task_id = 'dhus_download_task', 
