@@ -1,15 +1,10 @@
-import json
 import logging
-import math
 import os
-import shutil
-import zipfile
 
 from airflow.operators import BashOperator
 from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
-from pgmagick import Image, Geometry
 
 log = logging.getLogger(__name__)
 
@@ -245,86 +240,64 @@ class GDALAddoOperator(BaseOperator):
 class GDALTranslateOperator(BaseOperator):
 
     @apply_defaults
-    def __init__(self, tiled=None, working_dir=None, blockx_size=None,
-                 blocky_size=None, compress=None, photometric=None,
-                 ot=None, of=None, b=None, mask=None, outsize=None,
-                 scale=None, *args, **kwargs):
-
-        self.working_dir = working_dir
-        self.tiled = (
-            ' -co "TILED=' + tiled + '" ' if tiled else ' ')
-        self.blockx_size = (
-            ' -co "BLOCKXSIZE=' + blockx_size + '" ' if blockx_size else ' ')
-        self.blocky_size = (
-            ' -co "BLOCKYSIZE=' + blocky_size + '" ' if blocky_size else ' ')
-        self.compress = (
-            ' -co "COMPRESS=' + compress + '"' if compress else ' ')
-        self.photometric = (
-            ' -co "PHOTOMETRIC=' + photometric + '" ' if photometric else ' ')
-        self.ot = ' -ot ' + str(ot) if ot else ''
-        self.of = ' -of ' + str(of) if of else ''
-        self.b = ' -b ' + str(b) if b else ''
-        self.mask = '-mask ' + str(mask) if mask else ''
-        self.outsize = '-outsize ' + str(outsize) if outsize else ''
-        self.scale = ' -scale ' + str(scale) if scale else ''
-
-        log.info(
-            '--------------------GDAL_PLUGIN Translate initiated------------')
+    def __init__(self, get_inputs_from, output_type="UInt16",
+                 creation_options=None, *args, **kwargs):
         super(GDALTranslateOperator, self).__init__(*args, **kwargs)
+        self.get_inputs_from = get_inputs_from
+        self.output_type = str(output_type)
+        self.creation_options = dict(
+            creation_options) if creation_options is not None else {
+            "tiled": True,
+            "blockxsize": 512,
+            "blockysize": 512,
+        }
 
     def execute(self, context):
-        log.info(
-            '--------------------GDAL_PLUGIN Translate running------------')
-        task_instance = context['task_instance']
-        log.info("GDAL Translate Operator params list")
-        log.info('Working dir: %s', self.working_dir)
-        scene_fullpath = context['task_instance'].xcom_pull(
-            'landsat8_download_daraa_task', key='scene_fullpath')
-        scenes = os.listdir(scene_fullpath)
-        if not os.path.exists(scene_fullpath+"__translated"):
-            create_translated_dir = BashOperator(
-                task_id="bash_operator_translate",
-                bash_command="mkdir {}".format(scene_fullpath+"__translated")
+        downloaded_paths = context["task_instance"].xcom_pull(
+            self.get_inputs_from)
+        working_dir = os.path.join(
+            os.path.dirname(downloaded_paths[0]),
+            "__translated"
+        )
+        try:
+            os.makedirs(working_dir)
+        except OSError as exc:
+            if exc.errno == 17:
+                pass  # directory already exists
+            else:
+                raise
+        translated_paths = []
+        for path in (p for p in downloaded_paths if p.endswith(".TIF")):
+            output_img_filename = 'translated_{}' + os.path.basename(path)
+            output_path = os.path.join(working_dir, output_img_filename)
+            command = self._get_command(source=path, destination=output_path)
+            log.info("The complete GDAL translate "
+                     "command is: {}".format(command))
+            b_o = BashOperator(
+                task_id="bash_operator_translate_scenes",
+                bash_command=command
             )
-            create_translated_dir.execute(context)
-        for scene in scenes:
-            if scene.endswith(".TIF"):
-                output_img_filename = 'translated_' + str(scene)
-                gdaltranslate_command = (
-                    'gdal_translate ' + self.ot + self.of + self.b +
-                    self.mask + self.outsize + self.scale + self.tiled +
-                    self.blockx_size + self.blocky_size + self.compress +
-                    self.photometric + os.path.join(scene_fullpath, scene) +
-                    '  ' + os.path.join(
-                        scene_fullpath+"__translated",
-                        output_img_filename
-                    )
-                )
-                log.info(
-                    'The complete GDAL translate command '
-                    'is: %s', gdaltranslate_command
-                )
-                b_o = BashOperator(
-                    task_id="bash_operator_translate_scenes",
-                    bash_command=gdaltranslate_command
-                )
-                b_o.execute(context)
-        task_instance.xcom_push(
-            key='translated_scenes_dir',
-            value=os.path.join(
-                scene_fullpath+"__translated",
-                output_img_filename
+            b_o.execute(context)
+            translated_paths.append(output_path)
+        return translated_paths
+
+    def _get_command(self, source, destination):
+        return (
+            "gdal_translate -ot {output_type} {creation_opts} "
+            "{src} {dst}".format(
+                output_type=self.output_type,
+                creation_opts=self._get_gdal_creation_options(),
+                src=source,
+                dst=destination
             )
         )
-        task_instance.xcom_push(key='product_dir', value=scene_fullpath)
-        inner_tiffs = os.path.join(scene_fullpath, "*.TIF")
-        # rm_cmd = "rm -r {}".format(inner_tiffs)
-        # delete_b_o = BashOperator(
-        #     task_id="bash_operator_delete_scenes",
-        #     bash_command = rm_cmd
-        # )
-        # delete_b_o.execute(context)
-        return True
+
+    def _get_gdal_creation_options(self):
+        result = ""
+        for name, value in self.creation_options.items():
+            opt = "{}={}".format(name.upper(), value)
+            " ".join((result, opt))
+        return result
 
 
 class GDALPlugin(AirflowPlugin):
