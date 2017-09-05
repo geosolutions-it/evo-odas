@@ -81,15 +81,15 @@ metadata_task = Sentinel2MetadataOperator(task_id = 'dhus_metadata_task',
                                           dag = dag)
 
 # Archive Sentinel-2 RSYNC with .prj and .wld files Task Operator
-archive_wldprj_task = RSYNCOperator(task_id="sentinel2_upload_granules_with_wldprj", 
-                             host = "localhost", 
-                             remote_usr = "moataz", 
-                             ssh_key_file = "/usr/local/airflow/id_rsa", 
-                             remote_dir = sentinel2_config['granules_upload_dir'], 
-                             xk_pull_dag_id = 'Sentinel2',
-                             xk_pull_task_id = 'dhus_metadata_task', 
-                             xk_pull_key = 'downloaded_products_with_wldprj',
-                             dag=dag)
+archive_wldprj_task = RSYNCOperator(task_id="sentinel2_upload_granules_with_wldprj",
+                                    host = sentinel2_config["rsync_hostname"],
+                                    remote_usr = sentinel2_config["rsync_username"],
+                                    ssh_key_file = sentinel2_config["rsync_ssh_key"], 
+                                    remote_dir = sentinel2_config['granules_upload_dir'], 
+                                    xk_pull_dag_id = 'Sentinel2',
+                                    xk_pull_task_id = 'dhus_metadata_task', 
+                                    xk_pull_key = 'downloaded_products_with_wldprj',
+                                    dag=dag)
 
 # Sentinel-2 Product.zip Operator.
 # The following variables are just pointing to placeholders until we implement the real files.
