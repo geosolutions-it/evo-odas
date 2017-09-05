@@ -1,3 +1,4 @@
+from itertools import count
 import logging
 import os
 
@@ -7,6 +8,42 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 
 log = logging.getLogger(__name__)
+
+
+def get_overview_levels(max_level):
+    levels = []
+    current = 2
+    while current <= max_level:
+        levels.append(current)
+        current *= 2
+    return levels
+
+
+def get_gdaladdo_command(source, overview_levels, resampling_method,
+                         compress_overview=None):
+    compress_token = (
+        "--config COMPRESS_OVERVIEW {}".format(compress_overview) if
+        compress_overview is not None else ""
+    )
+    return "gdaladdo -r {method} {compress} {src} {levels}".format(
+        method=resampling_method,
+        compress=compress_token,
+        src=source,
+        levels=overview_levels
+    )
+
+
+def get_gdal_translate_command(source, destination, output_type,
+                               creation_options):
+    return (
+        "gdal_translate -ot {output_type} {creation_opts} "
+        "{src} {dst}".format(
+            output_type=output_type,
+            creation_opts=_get_gdal_creation_options(**creation_options),
+            src=source,
+            dst=destination
+        )
+    )
 
 
 class GDALWarpOperator(BaseOperator):
@@ -126,114 +163,29 @@ class GDALWarpOperator(BaseOperator):
 class GDALAddoOperator(BaseOperator):
 
     @apply_defaults
-    def __init__(self, resampling_method, max_overview_level,
-                 compress_overview=None, photometric_overview=None,
-                 interleave_overview=None, srcfile=None,
-                 xk_pull_dag_id=None, xk_pull_task_id=None,
-                 xk_pull_key_srcfile=None, xk_push_key=None,
+    def __init__(self, get_inputs_from, resampling_method,
+                 max_overview_level, compress_overview=None,
                  *args, **kwargs):
+        super(GDALAddoOperator, self).__init__(*args, **kwargs)
+        self.get_inputs_from = get_inputs_from
         self.resampling_method = resampling_method
-        self.max_overview_level = max_overview_level
-        self.compress_overview = (
-            ' --config COMPRESS_OVERVIEW ' + compress_overview +
-            ' ' if compress_overview else ' '
-        )
-        self.photometric_overview = (
-            ' --config PHOTOMETRIC_OVERVIEW ' + photometric_overview +
-            ' ' if photometric_overview else ' '
-        )
-        self.interleave_overview = (
-            ' --config INTERLEAVE_OVERVIEW ' + interleave_overview +
-            ' ' if interleave_overview else ' '
-        )
-        self.srcfile = srcfile
-        self.xk_pull_dag_id = xk_pull_dag_id
-        self.xk_pull_task_id = xk_pull_task_id
-        self.xk_pull_key_srcfile = xk_pull_key_srcfile
-        self.xk_push_key = xk_push_key
-
-        """
-        levels = ''
-        for i in range(1, int(math.log(max_overview_level, 2)) + 1):
-            levels += str(2**i) + ' '
-        self.levels = levels
-        """
-        level = 2
-        levels = ''
-        while level <= int(self.max_overview_level):
-            level = level*2
-            levels += str(level)
-            levels += ' '
-        self.levels = levels
-        super(GDALAddoOperator, self).__init__(*args, **kwargs)
-        super(GDALAddoOperator, self).__init__(*args, **kwargs)
+        self.max_overview_level = int(max_overview_level)
+        self.compress_overview = compress_overview
 
     def execute(self, context):
-        log.info('-------------------- GDAL_PLUGIN Addo ------------')
-        task_instance = context['task_instance']
-
-        log.info("""
-            resampling_method: {}
-            max_overview_level: {}
-            compress_overview: {}
-            photometric_overview: {}
-            interleave_overview: {}
-            srcfile: {}
-            xk_pull_dag_id: {}
-            xk_pull_task_id: {}
-            xk_pull_key_srcfile: {}
-            xk_push_key: {}
-            """.format(
-            self.resampling_method,
-            self.max_overview_level,
-            self.compress_overview,
-            self.photometric_overview,
-            self.interleave_overview,
-            self.srcfile,
-            self.xk_pull_dag_id,
-            self.xk_pull_task_id,
-            self.xk_pull_key_srcfile,
-            self.xk_push_key
-            )
+        input_path = context["task_instance"].xcom_pull(self.get_inputs_from)
+        levels = get_overview_levels(self.max_overview_level)
+        log.info("Generating overviews for {!r}...".format(input_path))
+        command = get_gdaladdo_command(
+            input_path, overview_levels=levels,
+            resampling_method=self.resampling_method,
+            compress_overview=self.compress_overview
         )
-
-        # init XCom parameters
-        if self.xk_pull_dag_id is None:
-            self.xk_pull_dag_id = context['dag'].dag_id
-        # check input file path passed otherwise look for it in XCom
-        if self.srcfile is not None:
-            srcfile = self.srcfile
-        else:
-            if self.xk_pull_key_srcfile is None:
-                self.xk_pull_key_srcfile = 'srcdir'
-            log.debug('Fetching srcdir from XCom')
-            srcfile = task_instance.xcom_pull(
-                task_ids=self.xk_pull_task_id,
-                key=self.xk_pull_key_srcfile,
-                dag_id=self.xk_pull_dag_id
-            )
-            if srcfile is None:
-                log.warn('No srcdir fetched from XCom. Nothing to do')
-                return False
-        assert srcfile is not None
-        log.info('srcfile: %s', srcfile)
-        log.info('levels %s', self.levels)
-
-        gdaladdo_command = (
-            'gdaladdo -r ' + self.resampling_method + ' ' +
-            self.compress_overview + self.photometric_overview +
-            self.interleave_overview + srcfile + ' ' + self.levels
-        )
-        log.info('The complete GDAL addo command is: %s', gdaladdo_command)
-
-        # push output path to XCom
-        if self.xk_push_key is None:
-            self.xk_push_key = 'dstfile'
-        task_instance.xcom_push(key='dstfile', value=srcfile)
-
-        # run the command
         bo = BashOperator(
-            task_id='bash_operator_addo_', bash_command=gdaladdo_command)
+            task_id='bash_operator_addo_{}'.format(
+                os.path.basename(input_path)),
+            bash_command=command
+        )
         bo.execute(context)
 
 
@@ -253,12 +205,10 @@ class GDALTranslateOperator(BaseOperator):
         }
 
     def execute(self, context):
-        downloaded_paths = context["task_instance"].xcom_pull(
+        downloaded_path = context["task_instance"].xcom_pull(
             self.get_inputs_from)
-        working_dir = os.path.join(
-            os.path.dirname(downloaded_paths[0]),
-            "__translated"
-        )
+        working_dir = os.path.join(os.path.dirname(downloaded_path),
+                                   "__translated")
         try:
             os.makedirs(working_dir)
         except OSError as exc:
@@ -266,38 +216,22 @@ class GDALTranslateOperator(BaseOperator):
                 pass  # directory already exists
             else:
                 raise
-        translated_paths = []
-        for path in (p for p in downloaded_paths if p.endswith(".TIF")):
-            output_img_filename = 'translated_{}' + os.path.basename(path)
-            output_path = os.path.join(working_dir, output_img_filename)
-            command = self._get_command(source=path, destination=output_path)
-            log.info("The complete GDAL translate "
-                     "command is: {}".format(command))
-            b_o = BashOperator(
-                task_id="bash_operator_translate_scenes",
-                bash_command=command
-            )
-            b_o.execute(context)
-            translated_paths.append(output_path)
-        return translated_paths
 
-    def _get_command(self, source, destination):
-        return (
-            "gdal_translate -ot {output_type} {creation_opts} "
-            "{src} {dst}".format(
-                output_type=self.output_type,
-                creation_opts=self._get_gdal_creation_options(),
-                src=source,
-                dst=destination
-            )
+        output_img_filename = 'translated_{}'.format(
+            os.path.basename(downloaded_path))
+        output_path = os.path.join(working_dir, output_img_filename)
+        command = get_gdal_translate_command(
+            source=downloaded_path, destination=output_path,
+            output_type=self.output_type,
+            creation_options=self.creation_options
         )
-
-    def _get_gdal_creation_options(self):
-        result = ""
-        for name, value in self.creation_options.items():
-            opt = "{}={}".format(name.upper(), value)
-            " ".join((result, opt))
-        return result
+        log.info("The complete GDAL translate command is: {}".format(command))
+        b_o = BashOperator(
+            task_id="bash_operator_translate",
+            bash_command=command
+        )
+        b_o.execute(context)
+        return output_path
 
 
 class GDALPlugin(AirflowPlugin):
@@ -307,3 +241,12 @@ class GDALPlugin(AirflowPlugin):
         GDALAddoOperator,
         GDALTranslateOperator
     ]
+
+
+def _get_gdal_creation_options(**creation_options):
+    result = ""
+    for name, value in creation_options.items():
+        opt = '-co "{}={}"'.format(name.upper(), value)
+        " ".join((result, opt))
+    return result
+
