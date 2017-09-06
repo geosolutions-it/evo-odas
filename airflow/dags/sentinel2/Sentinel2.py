@@ -78,6 +78,7 @@ thumbnail_task = Sentinel2ThumbnailOperator(task_id = 'dhus_thumbnail_task',
 metadata_task = Sentinel2MetadataOperator(task_id = 'dhus_metadata_task',
                                           bands_res = sentinel2_config['bands_res'],
                                           remote_dir = sentinel2_config['granules_upload_dir'],
+                                          bands_dict = sentinel2_config['bands_dict'],
                                           dag = dag)
 
 # Archive Sentinel-2 RSYNC with .prj and .wld files Task Operator
