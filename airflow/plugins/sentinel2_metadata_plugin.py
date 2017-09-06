@@ -58,9 +58,10 @@ Also, this class is creating the .wld and .prj files which are required by Geose
 '''
 class Sentinel2MetadataOperator(BaseOperator):
     @apply_defaults
-    def __init__(self, bands_res, remote_dir, *args, **kwargs):
+    def __init__(self, bands_res, bands_dict, remote_dir, *args, **kwargs):
         self.bands_res = bands_res
         self.remote_dir = remote_dir
+        self.bands_dict = bands_dict
         super(Sentinel2MetadataOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -115,10 +116,12 @@ class Sentinel2MetadataOperator(BaseOperator):
                                  log.info(file_name)
                                  features_list.append({"type": "Feature", "geometry": { "type": "Polygon", "coordinates": [coords]},\
                         "properties": {\
-                        "location":os.path.join(self.remote_dir, granule.granule_path.rsplit("/")[-1], "IMG_DATA", file_name.rsplit("/")[-1])},\
+                        "location":os.path.join(self.remote_dir, granule.granule_path.rsplit("/")[-1], "IMG_DATA", file_name.rsplit("/")[-1]), "band": self.bands_dict[file_name.rsplit("/")[-1].rsplit(".")[0][-3:]]},\
                         "id": "GRANULE.{}".format(granule_counter)})
                                  granule_counter+=1
             final_granules_dict = {"type": "FeatureCollection", "features": features_list}
+            # Note here that the SRID is a property of the granule not the product
+            final_metadata_dict["properties"]["crs"] = granule.srid
             with open('product.json', 'w') as product_outfile:
                 json.dump(final_metadata_dict, product_outfile)
             product_zipf = zipfile.ZipFile(product, 'a')
