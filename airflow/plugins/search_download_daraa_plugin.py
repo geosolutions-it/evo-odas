@@ -81,7 +81,7 @@ class Landsat8DownloadOperator(BaseOperator):
         )
         try:
             urllib.urlretrieve(url, target_path)
-        except Exception as exc:
+        except Exception:
             log.exception(
                 msg="Error downloading {}".format(self.url_fragment))
             raise
