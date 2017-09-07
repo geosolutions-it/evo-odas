@@ -23,7 +23,7 @@ Landsat8Area = namedtuple("Landsat8Area", [
 ])
 
 
-def generate_dag(area, default_args):
+def generate_dag(area, download_dir, default_args):
     """Generate Landsat8 ingestion DAGs.
 
     Parameters
@@ -48,54 +48,65 @@ def generate_dag(area, default_args):
         }
     )
     search_task = Landsat8SearchOperator(
-        task_id='landsat8_search_{}'.format(area.name),
+        task_id='search_{}'.format(area.name),
         area=area,
         cloud_coverage=90.9,
         db_credentials=postgresql_credentials,
         dag=dag
     )
+    generate_html_description = Landsat8ProductDescriptionOperator(
+        task_id='generate_html_description',
+        description_template="./geo-solutions-work/evo-odas/"
+                             "metadata-ingestion/templates/"
+                             "product_abstract.html",
+        download_dir=download_dir,
+        dag=dag
+    )
     download_thumbnail = Landsat8DownloadOperator(
         task_id="download_thumbnail",
-        download_dir="/var/data/download",
+        download_dir=download_dir,
         get_inputs_from=search_task.task_id,
         url_fragment="thumb_smal.jpg",
         dag=dag
     )
-    product_thumbnail_task = Landsat8ThumbnailOperator(
-        task_id='landsat8_product_thumbnail',
+    generate_thumbnail = Landsat8ThumbnailOperator(
+        task_id='generate_thumbnail',
+        get_inputs_from=download_thumbnail.task_id,
         thumb_size_x="64",
         thumb_size_y="64",
         dag=dag
     )
     download_metadata = Landsat8DownloadOperator(
         task_id="download_metadata",
-        download_dir="/var/data/download",
+        download_dir=download_dir,
         get_inputs_from=search_task.task_id,
         url_fragment="MTL.txt",
         dag=dag
     )
-    product_json_task = Landsat8MTLReaderOperator(
-        task_id='landsat8_product_json',
-        loc_base_dir='/efs/geoserver_data/coverages/landsat8/daraa',
+    generate_metadata = Landsat8MTLReaderOperator(
+        task_id='generate_metadata',
+        get_inputs_from=download_metadata.task_id,
+        loc_base_dir='/efs/geoserver_data/coverages/landsat8/{}'.format(
+            area.name),
         metadata_xml_path='./geo-solutions-work/evo-odas/metadata-ingestion/'
                           'templates/metadata.xml',
-        dag=dag
-    )
-    product_description_task = Landsat8ProductDescriptionOperator(
-        description_template='./geo-solutions-work/evo-odas/metadata-ingestion/'
-                             'templates/product_abstract.html',
-        task_id='landsat8_product_description',
         dag=dag
     )
 
     product_zip_task = Landsat8ProductZipFileOperator(
         task_id='landsat8_product_zip',
+        get_inputs_from=[
+            generate_html_description.task_id,
+            generate_metadata.task_id,
+            generate_thumbnail.task_id,
+        ],
+        output_dir=download_dir,
         dag=dag
     )
     for band in area.bands:
         download_band = Landsat8DownloadOperator(
             task_id="download_band{}".format(band),
-            download_dir="/var/data/download",
+            download_dir=download_dir,
             get_inputs_from=search_task.task_id,
             url_fragment="B{}.TIF".format(band),
             dag=dag
@@ -116,26 +127,27 @@ def generate_dag(area, default_args):
         download_band.set_upstream(search_task)
         translate.set_upstream(download_band)
         addo.set_upstream(translate)
-        product_zip_task.set_upstream(addo)
 
 
     download_thumbnail.set_upstream(search_task)
     download_metadata.set_upstream(search_task)
-    product_json_task.set_upstream(download_metadata)
-    product_thumbnail_task.set_upstream(download_thumbnail)
-    product_description_task.set_upstream(download_metadata)
-    product_zip_task.set_upstream(product_description_task)
-    product_zip_task.set_upstream(product_json_task)
-    product_zip_task.set_upstream(product_thumbnail_task)
+    generate_metadata.set_upstream(download_metadata)
+    generate_thumbnail.set_upstream(download_thumbnail)
+    generate_html_description.set_upstream(search_task)
+    product_zip_task.set_upstream(generate_html_description)
+    product_zip_task.set_upstream(generate_metadata)
+    product_zip_task.set_upstream(generate_thumbnail)
     return dag
 
 
 AREAS = [
     Landsat8Area(name="daraa", path=174, row=37, bands=[1, 2, 3]),
+    Landsat8Area(name="neighbour", path=175, row=37, bands=[1, 2, 3, 7]),
+    Landsat8Area(name="other", path=176, row=37, bands=range(1, 12)),
 ]
 
 for area in AREAS:
-    dag = generate_dag(area, default_args={
+    dag = generate_dag(area, download_dir="/var/data/download", default_args={
         'start_date': datetime(2017, 1, 1),
         'owner': 'airflow',
         'depends_on_past': False,
