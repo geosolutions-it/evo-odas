@@ -19,8 +19,12 @@ sentinel2_config = {
     'geojson_bbox': '/var/data/regions/germany.geojson',
     'startdate': (datetime.today() - timedelta(days=10)).isoformat() + 'Z',
     'enddate': enddate,
-    'platformname': 'Sentinel-2',
-    'filename': 'S2A_MSIL1C*',
+    'search_keywords' : {
+        'filename': 'S2A_MSIL1C*',
+        'platformname': 'Sentinel-2',
+        'orbitdirection':'Descending',
+        'cloudcoverpercentage':'[0 TO 5]'
+    },
     'download_dir': os.path.join(download_base_dir, "Sentinel-2"),
     'granules_upload_dir': "/var/data/sentinel2/uploads",
     'bands_res': {'10':("B02","B03","B04","B08"),'20':("B05","B06","B07","B8A","B11","B12"),'60':("B01","B09","B10")},

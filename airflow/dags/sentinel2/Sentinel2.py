@@ -43,8 +43,7 @@ search_task = DHUSSearchOperator(task_id = 'dhus_search_task',
                                  geojson_bbox = sentinel2_config['geojson_bbox'],
                                  startdate = sentinel2_config['startdate'],
                                  enddate = sentinel2_config['enddate'],
-                                 platformname = sentinel2_config['platformname'],
-                                 filename = sentinel2_config['filename'],
+                                 keywords = sentinel2_config['search_keywords'],
                                  dag = dag)
 
 # Sentinel-2 Download Task Operator

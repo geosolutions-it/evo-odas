@@ -23,8 +23,10 @@ ew_grdm_1sdh_config = {
     'geojson_bbox': '/var/data/regions/daraa.geojson',
     'startdate': startdate,
     'enddate': enddate,
-    'platformname': platformname,
-    'filename': 'S1?_EW_GRDM_1SDH*',
+    'search_keywords' : {
+        'filename': 'S1?_EW_GRDM_1SDH*',
+        'platformname': platformname,
+    },
     'download_dir': download_dir,
     'granules_upload_dir': '/efs/geoserver_data/coverages/sentinel/sentinel1/grd/EW_GRDM_1SDH'
 }
@@ -34,8 +36,10 @@ ew_grdm_1sdv_config = {
     'geojson_bbox': '/var/data/regions/germany.geojson',
     'startdate': startdate,
     'enddate': enddate,
-    'platformname': platformname,
-    'filename': 'S1?_*_GRD?_1SDV*',
+    'search_keywords' : {
+        'filename': 'S1?_*_GRD?_1SDV*',
+        'platformname': platformname,
+    },
     'download_dir': download_dir,
     'granules_upload_dir': '/efs/geoserver_data/coverages/sentinel/sentinel1/grd/EW_GRDM_1SDV'
 }
