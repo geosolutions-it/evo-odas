@@ -22,17 +22,19 @@ class DHUSSearchOperator(BaseOperator):
             geojson_bbox, 
             startdate, 
             enddate,
-            platformname=None,
-            filename=None,
+            filter_max=10,
+            order_by='+ingestiondate,-cloudcoverpercentage',            
+            keywords=None,
             *args, **kwargs):
         self.dhus_url = dhus_url
         self.dhus_user = dhus_user
         self.dhus_pass = dhus_pass
         self.geojson_bbox = geojson_bbox
-        self.startdate = str(startdate)
-        self.enddate = str(enddate)
-        self.platformname = platformname
-        self.filename = filename
+        self.startdate = startdate
+        self.enddate = enddate
+        self.filter_max = filter_max
+        self.order_by = order_by        
+        self.keywords = keywords
 
         print("Init DHUS Search.. ")
         
@@ -47,9 +49,10 @@ class DHUSSearchOperator(BaseOperator):
         #log.info('API Password: %s', self.dhus_pass)
         log.info('Start Date: %s', self.startdate)
         log.info('End Date: %s', self.enddate)
+        log.info('Filter Max: %s', self.filter_max)
+        log.info('Order By: %s', self.order_by)        
         log.info('GeoJSON: %s', self.geojson_bbox)
-        log.info('Platform: %s', self.platformname)
-        log.info('Filename: %s', self.filename)
+        log.info('Keywords: %s', self.keywords)
 
         log.info('Now is: {}'.format( datetime.now() ))
         log.info('6 hours ago was: {}'.format( datetime.now() - timedelta(hours=6)) )
@@ -65,22 +68,21 @@ class DHUSSearchOperator(BaseOperator):
             return False
 
         products = api.query(
-            footprint,
-            initial_date=self.startdate,
-            end_date=self.enddate,
-            platformname=self.platformname,
-            filename=self.filename
+            area=footprint,
+            date=(self.startdate, self.enddate),
+            order_by=self.order_by,
+            limit=self.filter_max,
+            **self.keywords
         )
-        
-        #product_summary=""
-        #for key, product in products.items():
-            #product_summary+='{}|{}|{}\n'.format(product['key'],key,product['summary'])
-            #log.info('Product: {}\n{} | {}'.format(product['id'],key,product['summary']))
-            #log.debug("{}".format( pp.pprint(product)));        
-        log.info("Found {} products:\n{}".format(len(products),pprint.pprint(products)))
-        log.debug('Pushing to XCom: {}'.format(products))
+
+        log.info("Retrieving {} products:".format(len(products)))
+        products_summary="\n"
+        for key, product in products.items():
+            products_summary+='ID: {}, {}\n'.format(key,product['summary'])
+        log.info(products_summary)
+
         context['task_instance'].xcom_push(key='searched_products', value=products)
-        return True
+        return products
     
 class DHUSDownloadOperator(BaseOperator):
 
@@ -91,7 +93,7 @@ class DHUSDownloadOperator(BaseOperator):
             dhus_pass,
             download_dir,
             download_timeout=timedelta(hours=5),
-            download_max=100,
+            download_max=10,
             product_ids=None,
             *args, **kwargs):
         self.dhus_url = dhus_url
@@ -110,18 +112,21 @@ class DHUSDownloadOperator(BaseOperator):
         log.info("## DHUS Download ##")
         log.info('API URL: %s', self.dhus_url)
         log.info('API User: %s', self.dhus_user)
-        log.info('API Password: %s', self.dhus_pass)
+        #log.info('API Password: %s', self.dhus_pass)
         log.info('Max Downloads: %s', self.download_max)
         log.info('Download Directory: %s', self.download_dir)
 
         log.info("Execute DHUS Download.. ")
         
+        if not os.path.exists(self.download_dir):
+            log.info("Creating directory for download: {}".format(self.download_dir))
+            os.makedirs(self.download_dir)
+
         if self.product_ids == None:
             self.product_ids = []
             
         # retrieving products from previous search step
         self.products = context['task_instance'].xcom_pull('dhus_search_task', key='searched_products')
-	print('type: {}'.format(self.products))
         log.info("Retrieved {} products:\n{}".format(len(self.products), pprint.pprint(self.products)))
 
         if not self.products or len(self.products) == 0:
@@ -150,7 +155,7 @@ class DHUSDownloadOperator(BaseOperator):
         log.debug("Downloaded {} products:\n{}".format(len(product_downloaded),pp.pprint(product_downloaded)))
         context['task_instance'].xcom_push(key='downloaded_products', value=product_downloaded)
         context['task_instance'].xcom_push(key='downloaded_products_paths', value=' '.join(product_downloaded.keys()))
-        return True
+        return product_downloaded
 
 class DHUSPlugin(AirflowPlugin):
     name = "dhus_plugin"

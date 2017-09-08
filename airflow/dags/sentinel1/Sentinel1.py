@@ -61,8 +61,7 @@ search_task = DHUSSearchOperator(task_id='dhus_search_task',
                                  geojson_bbox=ew_grdm_1sdv_config['geojson_bbox'],
                                  startdate=ew_grdm_1sdv_config['startdate'],
                                  enddate=ew_grdm_1sdv_config['enddate'],
-                                 platformname=ew_grdm_1sdv_config['platformname'],
-                                 filename=ew_grdm_1sdv_config['filename'],
+                                 keywords = ew_grdm_1sdv_config['search_keywords'],
                                  dag=main_dag)
 
 # DHUS Download Task Operator
