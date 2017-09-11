@@ -14,6 +14,9 @@ enddate= enddate.isoformat() + 'Z'
 # download base dir
 download_base_dir= '/var/data/download/'
 
+geoserver_url = "http://geoserver.cloudsdi.geo-solutions.it/geoserver"
+geoserver_collection_name="SENTINEL2"
+
 sentinel2_config = {
     'download_max': '1',
     'geojson_bbox': '/var/data/regions/germany.geojson',
@@ -26,7 +29,7 @@ sentinel2_config = {
         'cloudcoverpercentage':'[0 TO 5]'
     },
     'download_dir': os.path.join(download_base_dir, "Sentinel-2"),
-    'granules_upload_dir': "/var/data/sentinel2/uploads",
+    'granules_upload_dir': "/efs/geoserver_data/coverages/sentinel/sentinel2/sentinel2",
     'bands_res': {'10':("B02","B03","B04","B08"),'20':("B05","B06","B07","B8A","B11","B12"),'60':("B01","B09","B10")},
     'bands_dict': {'B01':1,'B02':2,'B03':3,'B04':4,'B05':5,'B06':6,'B07':7,'B08':8,'B8A':9,'B09':10,'B10':11,'B11':12,'B12':13,'TCI':14},
     'product_zip_target_dir':"/var/data/download/Sentinel-2", 

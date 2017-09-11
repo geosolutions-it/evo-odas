@@ -1,9 +1,10 @@
 import logging, os
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators import DHUSSearchOperator, DHUSDownloadOperator, Sentinel2ThumbnailOperator, Sentinel2MetadataOperator, Sentinel2ProductZipOperator, RSYNCOperator
-from sentinel1.secrets import dhus_credentials
-from sentinel2.config import sentinel2_config
+from airflow.operators import DHUSSearchOperator, DHUSDownloadOperator, Sentinel2ThumbnailOperator, Sentinel2MetadataOperator, Sentinel2ProductZipOperator, RSYNCOperator, BashOperator, PythonOperator
+from sentinel2.utils import publish_product
+from sentinel1.secrets import dhus_credentials, geoserver_credentials
+from sentinel2.config import sentinel2_config, geoserver_url, geoserver_collection_name
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ default_args = {
 dag = DAG('Sentinel2', description='DAG for searching, filtering and downloading Sentinel-2 data from DHUS server',
           default_args = default_args,
           dagrun_timeout = timedelta(hours=10),
-          schedule_interval = '0 * * * *',
+          schedule_interval = '0 0 * * *',
           catchup = False)
 
 # Sentinel2- Search Task Operator
@@ -56,7 +57,7 @@ download_task = DHUSDownloadOperator(task_id = 'dhus_download_task',
                                      dag = dag)
 
 # Archive Sentinel-2 RSYNC Task Operator
-archive_task = RSYNCOperator(task_id="sentinel2_upload_granules", 
+archive_task = RSYNCOperator(task_id="original_package_upload",
                              host = sentinel2_config["rsync_hostname"], 
                              remote_usr = sentinel2_config["rsync_username"],
                              ssh_key_file = sentinel2_config["rsync_ssh_key"], 
@@ -81,7 +82,7 @@ metadata_task = Sentinel2MetadataOperator(task_id = 'dhus_metadata_task',
                                           dag = dag)
 
 # Archive Sentinel-2 RSYNC with .prj and .wld files Task Operator
-archive_wldprj_task = RSYNCOperator(task_id="sentinel2_upload_granules_with_wldprj",
+archive_wldprj_task = RSYNCOperator(task_id="sentinel2_upload_granules",
                                     host = sentinel2_config["rsync_hostname"],
                                     remote_usr = sentinel2_config["rsync_username"],
                                     ssh_key_file = sentinel2_config["rsync_ssh_key"], 
@@ -103,4 +104,17 @@ product_zip_task = Sentinel2ProductZipOperator(task_id = 'product_zip_task',
                                                placeholders = placeholders_list,
                                                dag = dag)
 
-search_task >> download_task >> archive_task >> thumbnail_task >> metadata_task >> archive_wldprj_task >> product_zip_task
+publish_task = PythonOperator(
+    task_id="publish_product",
+    python_callable=publish_product,
+    op_kwargs={
+        'geoserver_username': geoserver_credentials['username'],
+        'geoserver_password': geoserver_credentials['password'],
+        'geoserver_rest_endpoint': '{}/rest/oseo/collections/{}/products'.format(
+            geoserver_url, geoserver_collection_name)
+    },
+    dag = dag
+)
+
+
+search_task >> download_task >> archive_task >> thumbnail_task >> metadata_task >> archive_wldprj_task >> product_zip_task >> publish_task
