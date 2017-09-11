@@ -79,6 +79,12 @@ metadata_task = Sentinel2MetadataOperator(task_id = 'dhus_metadata_task',
                                           bands_res = sentinel2_config['bands_res'],
                                           remote_dir = sentinel2_config['granules_upload_dir'],
                                           bands_dict = sentinel2_config['bands_dict'],
+                                          GS_WORKSPACE = sentinel2_config['GS_WORKSPACE'], 
+                                          GS_LAYER = sentinel2_config['GS_LAYER'],
+                                          GS_WMS_WIDTH = sentinel2_config['GS_WMS_WIDTH'],
+                                          GS_WMS_HEIGHT = sentinel2_config['GS_WMS_HEIGHT'],
+                                          GS_WMS_FORMAT = sentinel2_config['GS_WMS_FORMAT'],
+                                          coverage_id = sentinel2_config['coverage_id'],
                                           dag = dag)
 
 # Archive Sentinel-2 RSYNC with .prj and .wld files Task Operator

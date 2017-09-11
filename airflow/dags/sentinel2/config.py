@@ -35,5 +35,11 @@ sentinel2_config = {
     'product_zip_target_dir':"/var/data/download/Sentinel-2", 
     'rsync_hostname': 'geoserver.cloudsdi.geo-solutions.it',
     'rsync_username': 'ec2-user',
-    'rsync_ssh_key' : '/usr/local/airflow/id_rsa'
+    'rsync_ssh_key' : '/usr/local/airflow/id_rsa',
+    'GS_WORKSPACE'  : 'S2XYZ_Workspace',
+    'GS_LAYER'      : 'S2XYZ_Layer',
+    'GS_WMS_WIDTH'  : '512', 
+    'GS_WMS_HEIGHT' : '512',
+    'GS_WMS_FORMAT' : 'JPEG2000',
+    'coverage_id'   : 'S2_XYZ_CID'
 }
