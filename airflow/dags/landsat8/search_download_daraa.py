@@ -1,7 +1,7 @@
 from collections import namedtuple
 from datetime import datetime
 from datetime import timedelta
-import logging
+import os
 
 from airflow.models import DAG
 from airflow.operators import GDALAddoOperator
@@ -15,12 +15,33 @@ from airflow.operators import Landsat8ThumbnailOperator
 
 from landsat8.secrets import postgresql_credentials
 
+# These ought to be moved to a more central place where other settings might
+# be stored
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.dirname(__file__)
+        )
+    )
+)
+DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "download")
+TEMPLATES_PATH = os.path.join(PROJECT_ROOT, "metadata-ingestion", "templates")
+
 Landsat8Area = namedtuple("Landsat8Area", [
     "name",
     "path",
     "row",
     "bands"
 ])
+
+
+AREAS = [
+    Landsat8Area(name="daraa", path=174, row=37, bands=[1, 2, 3]),
+    # These are just some dummy areas in order to test generation of
+    # multiple DAGs
+    Landsat8Area(name="neighbour", path=175, row=37, bands=[1, 2, 3, 7]),
+    Landsat8Area(name="other", path=176, row=37, bands=range(1, 12)),
+]
 
 
 def generate_dag(area, download_dir, default_args):
@@ -56,9 +77,8 @@ def generate_dag(area, download_dir, default_args):
     )
     generate_html_description = Landsat8ProductDescriptionOperator(
         task_id='generate_html_description',
-        description_template="./geo-solutions-work/evo-odas/"
-                             "metadata-ingestion/templates/"
-                             "product_abstract.html",
+        description_template=os.path.join(
+            TEMPLATES_PATH, "product_abstract.html"),
         download_dir=download_dir,
         dag=dag
     )
@@ -66,7 +86,7 @@ def generate_dag(area, download_dir, default_args):
         task_id="download_thumbnail",
         download_dir=download_dir,
         get_inputs_from=search_task.task_id,
-        url_fragment="thumb_smal.jpg",
+        url_fragment="thumb_small.jpg",
         dag=dag
     )
     generate_thumbnail = Landsat8ThumbnailOperator(
@@ -88,8 +108,7 @@ def generate_dag(area, download_dir, default_args):
         get_inputs_from=download_metadata.task_id,
         loc_base_dir='/efs/geoserver_data/coverages/landsat8/{}'.format(
             area.name),
-        metadata_xml_path='./geo-solutions-work/evo-odas/metadata-ingestion/'
-                          'templates/metadata.xml',
+        metadata_xml_path=os.path.join(TEMPLATES_PATH, "metadata.xml"),
         dag=dag
     )
 
@@ -140,14 +159,8 @@ def generate_dag(area, download_dir, default_args):
     return dag
 
 
-AREAS = [
-    Landsat8Area(name="daraa", path=174, row=37, bands=[1, 2, 3]),
-    Landsat8Area(name="neighbour", path=175, row=37, bands=[1, 2, 3, 7]),
-    Landsat8Area(name="other", path=176, row=37, bands=range(1, 12)),
-]
-
 for area in AREAS:
-    dag = generate_dag(area, download_dir="/var/data/download", default_args={
+    dag = generate_dag(area, download_dir=DOWNLOAD_DIR, default_args={
         'start_date': datetime(2017, 1, 1),
         'owner': 'airflow',
         'depends_on_past': False,

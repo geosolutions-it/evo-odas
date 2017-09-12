@@ -1,5 +1,4 @@
 from collections import namedtuple
-from collections import Iterable
 import json
 import logging
 import os
@@ -7,11 +6,10 @@ import pprint
 import shutil
 import zipfile
 
-from airflow.operators import BaseOperator, BashOperator
+from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
-from pgmagick import Image, Geometry
-from jinja2 import Environment, FileSystemLoader, Template
+from pgmagick import Image
 
 log = logging.getLogger(__name__)
 pp = pprint.PrettyPrinter(indent=2)
@@ -29,8 +27,8 @@ BoundingBox = namedtuple("BoundingBox", [
 ])
 
 
-
 def parse_mtl_data(buffer):
+    """Parse input file-like object that contains metadata in MTL format."""
     metadata = {}
     current = metadata
     previous = metadata
@@ -75,7 +73,6 @@ def get_bounding_box(product_metadata):
 
 
 def prepare_metadata(metadata, bounding_box):
-    #bbox = get_bounding_box(metadata["PRODUCT_METADATA"])
     return {
         "type": "Feature",
         "geometry": {
@@ -183,7 +180,6 @@ class Landsat8MTLReaderOperator(BaseOperator):
         bounding_box = get_bounding_box(parsed_metadata["PRODUCT_METADATA"])
         prepared_metadata = prepare_metadata(parsed_metadata, bounding_box)
         product_directory, mtl_name = os.path.split(mtl_path)
-        # FIXME: location is probably wrong
         location = os.path.join(self.loc_base_dir, product_directory, mtl_name)
         granules_dict = prepare_granules(bounding_box, location)
         json_path = os.path.join(product_directory, "product.json")
@@ -193,7 +189,6 @@ class Landsat8MTLReaderOperator(BaseOperator):
             json.dump(prepared_metadata, out_json_fh)
         with open(granules_path, 'w') as out_granules_fh:
             json.dump(granules_dict, out_granules_fh)
-        # FIXME: This line below seems to be out of place here
         shutil.copyfile(self.metadata_xml_path, xml_template_path)
         return json_path, granules_path, xml_template_path
 
@@ -215,6 +210,7 @@ class Landsat8ThumbnailOperator(BaseOperator):
     def execute(self, context):
         downloaded_thumbnail = context["task_instance"].xcom_pull(
             self.get_inputs_from)
+        log.info("downloaded_thumbnail: {}".format(downloaded_thumbnail))
         img = Image(downloaded_thumbnail)
         least_dim = min(int(img.columns()), int(img.rows()))
         img.crop("{dim}x{dim}".format(dim=least_dim))
@@ -239,10 +235,7 @@ class Landsat8ProductDescriptionOperator(BaseOperator):
 
     def execute(self, context):
         output_path = os.path.join(self.download_dir, "description.html")
-        try:
-            shutil.copyfile(self.description_template, output_path)
-        except Exception:
-            print("Couldn't find description.html")
+        shutil.copyfile(self.description_template, output_path)
         return output_path
 
 
@@ -261,15 +254,15 @@ class Landsat8ProductZipFileOperator(BaseOperator):
         paths_to_zip = []
         for input_provider in self.get_inputs_from:
             inputs = context["task_instance"].xcom_pull(input_provider)
-            if isinstance(inputs, Iterable):
-                paths_to_zip.extend(inputs)
-            else:
+            if isinstance(inputs, basestring):
                 paths_to_zip.append(inputs)
-        log.info(paths_to_zip)
+            else:  # the Landsat8MTLReaderOperator returns a tuple of strings
+                paths_to_zip.extend(inputs)
+        log.info("paths_to_zip: {}".format(paths_to_zip))
         output_path = os.path.join(self.output_dir, "product.zip")
         with zipfile.ZipFile(output_path, "w") as zip_handler:
             for path in paths_to_zip:
-                zip_handler.write(os.path.basename(path))
+                zip_handler.write(path, os.path.basename(path))
         return output_path
 
 
