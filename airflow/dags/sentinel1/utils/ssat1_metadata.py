@@ -148,7 +148,6 @@ def create_owslinks_dict(product_metadata, granules_paths, bbox_str):
     for granule in granules_paths:
         bbox_polygon = get_bbox_from_granule(granule)
         break
-    #return [[ulx, uly], [llx, lly], [lrx, lry], [urx, ury], [ulx, uly]]
     lat_lower_left=bbox_polygon[1][1]
     lat_upper_right=bbox_polygon[3][1]
     long_lower_left=bbox_polygon[1][0]
