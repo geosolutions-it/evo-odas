@@ -9,12 +9,29 @@ from zipfile import ZipFile
 from S1Reader import S1GDALReader
 from templates_renderer import TemplatesResolver
 
-
-GS_WORKSPACE="test"
-GS_LAYER="SENTINEL1_MOSAIC"
+# OWS links settings for WMS
+GS_WMS_WORKSPACE="test"
+GS_WMS_LAYER="SENTINEL1_MOSAIC"
+GS_WMS_VERSION="1.3.0"
 GS_WMS_WIDTH="768"
 GS_WMS_HEIGHT="768"
 GS_WMS_FORMAT="image/jpeg"
+
+# OWS links settings for WFS
+GS_WFS_WORKSPACE="test"
+GS_WFS_LAYER="SENTINEL1"
+GS_WFS_VERSION="2.0.0"
+GS_WFS_FORMAT="application/json"
+
+# OWS links settings for WCS
+GS_WCS_WORKSPACE="test"
+GS_WCS_LAYER="SENTINEL1_MOSAIC"
+GS_WCS_VERSION="2.0.1"
+GS_WCS_SCALE_I='0.1'
+GS_WCS_SCALE_J='0.1'
+GS_WCS_FORMAT="geotiff"
+
+
 WORKING_DIR='/var/data/working'
 
 try:
@@ -126,28 +143,89 @@ def collect_granules_metadata(granules_paths, granules_upload_dir):
         granules_dict['features'].append(feature)
         return (granules_dict, bbox_str)
 
-def create_owslinks_dict(product_metadata, bbox):
+def create_owslinks_dict(product_metadata, granules_paths, bbox_str):
+    # Get BBOX from on of the granules, assuming same for all of them
+    for granule in granules_paths:
+        bbox_polygon = get_bbox_from_granule(granule)
+        break
+    #return [[ulx, uly], [llx, lly], [lrx, lry], [urx, ury], [ulx, uly]]
+    lat_lower_left=bbox_polygon[1][1]
+    lat_upper_right=bbox_polygon[3][1]
+    long_lower_left=bbox_polygon[1][0]
+    long_upper_right=bbox_polygon[3][0]
+    log.info("""
+    granules bbox:
+        long_lower_left: {}
+        long_upper_right: {}
+        lat_lower_left: {}
+        lat_upper_right: {}
+    """.format(
+        long_lower_left,
+        long_upper_right,
+        lat_lower_left,
+        lat_upper_right
+    ))
+
     owslinks_dict = \
         {
-        "links": [
-            {
-                "offering": "http://www.opengis.net/spec/owc/1.0/req/atom/wms",
-                "method": "GET",
-                "code": "GetCapabilities",
-                "type": "application/xml",
-                "href": "${BASE_URL}" + "/{}/{}/ows?service=wms&request={}&version={}&CQL_FILTER=eoParentIdentifier='{}'".format(
-                    GS_WORKSPACE, GS_LAYER, "GetCapabilities", "1.3.0", product_metadata['NAME'])
-            },
-            {
-                "offering": "http://www.opengis.net/spec/owc/1.0/req/atom/wms",
-                "method": "GET",
-                "code": "GetMap",
-                "type": "image/jpeg",
-                "href": "${BASE_URL}" + "/{}/{}/ows?service=wms&request={}&version={}&LAYERS={}&BBOX={}&WIDTH={}&HEIGHT={}&FORMAT={}&CQL_FILTER=eoIdentifier='{}'".format(
-                    GS_WORKSPACE, GS_LAYER, "GetMap", "1.3.0", GS_LAYER, bbox, GS_WMS_WIDTH, GS_WMS_HEIGHT, GS_WMS_FORMAT, product_metadata['NAME'])
-            }
-        ]
-    }
+            "links": [
+                # WMS Links
+                {
+                    "offering": "http://www.opengis.net/spec/owc/1.0/req/atom/wms",
+                    "method": "GET",
+                    "code": "GetCapabilities",
+                    "type": "application/xml",
+                    "href": "${BASE_URL}" + "/{}/{}/ows?service=WMS&request={}&version={}&CQL_FILTER=eoIdentifier='{}'".format(
+                        GS_WMS_WORKSPACE, GS_WMS_LAYER, "GetCapabilities", GS_WMS_VERSION, product_metadata['NAME'])
+                },
+                {
+                    "offering": "http://www.opengis.net/spec/owc/1.0/req/atom/wms",
+                    "method": "GET",
+                    "code": "GetMap",
+                    "type": "image/jpeg",
+                    "href": "${BASE_URL}" + "/{}/{}/ows?service=WMS&request={}&version={}&LAYERS={}&BBOX={}&WIDTH={}&HEIGHT={}&FORMAT={}&CQL_FILTER=eoIdentifier='{}'".format(
+                        GS_WMS_WORKSPACE, GS_WMS_LAYER, "GetMap", GS_WMS_VERSION, GS_WMS_LAYER, bbox_str, GS_WMS_WIDTH, GS_WMS_HEIGHT,
+                        GS_WMS_FORMAT, product_metadata['NAME'])
+                },
+                # WFS Links
+                {
+                    "offering": "http://www.opengis.net/spec/owc/1.0/req/atom/wfs",
+                    "method": "GET",
+                    "code": "GetCapabilities",
+                    "type": "application/xml",
+                    "href": "${BASE_URL}" + "/{}/{}/ows?service=WFS&request={}&version={}&CQL_FILTER=eoIdentifier='{}'".format(
+                        GS_WFS_WORKSPACE, GS_WFS_LAYER, "GetCapabilities", GS_WFS_VERSION, product_metadata['NAME'])
+                },
+                {
+                    "offering": "http://www.opengis.net/spec/owc/1.0/req/atom/wfs",
+                    "method": "GET",
+                    "code": "GetFeature",
+                    "type": "image/jpeg",
+                    "href": "${BASE_URL}" + "/{}/{}/ows?service=WFS&request={}&version={}&typeNames={}:{}&outputFormat={}&CQL_FILTER=eoIdentifier='{}'".format(
+                        GS_WFS_WORKSPACE, GS_WFS_LAYER, "GetFeature", GS_WFS_VERSION, GS_WFS_WORKSPACE, GS_WFS_LAYER,
+                        GS_WFS_FORMAT, product_metadata['NAME'])
+                },
+                # WCS Links
+                {
+                    "offering": "http://www.opengis.net/spec/owc/1.0/req/atom/wcs",
+                    "method": "GET",
+                    "code": "GetCapabilities",
+                    "type": "application/xml",
+                    "href": "${BASE_URL}" + "/{}/{}/ows?service=WCS&request={}&version={}&CQL_FILTER=eoIdentifier='{}'".format(
+                        GS_WCS_WORKSPACE, GS_WCS_LAYER, "GetCapabilities", GS_WCS_VERSION, product_metadata['NAME'])
+                },
+                {
+                    "offering": "http://www.opengis.net/spec/owc/1.0/req/atom/wcs",
+                    "method": "GET",
+                    "code": "GetCoverage",
+                    "type": "image/jpeg",
+                    "href": "${BASE_URL}" + "/{}/{}/ows?service=WCS&request={}&version={}&coverageId={}__{}&FORMAT={}&subset=http://www.opengis.net/def/axis/OGC/0/Long({},{})&subset=http://www.opengis.net/def/axis/OGC/0/Lat({},{})&scaleaxes=i({}),j({})&CQL_FILTER=eoIdentifier='{}'".format(
+                        GS_WCS_WORKSPACE, GS_WCS_LAYER, "GetCoverage", GS_WCS_VERSION, GS_WCS_WORKSPACE, GS_WCS_LAYER,
+                        GS_WCS_FORMAT, long_lower_left, long_upper_right, lat_lower_left, lat_upper_right,
+                        GS_WCS_SCALE_I, GS_WCS_SCALE_J, product_metadata['NAME'])
+                }
+            ]
+        }
     return owslinks_dict
 
 def get_bbox_from_granule(granule_path):
@@ -225,7 +303,7 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
     files.append(path)
 
     # create owslinks.json and dump it to file
-    owslinks_dict = create_owslinks_dict(s1metadata, bbox_str)
+    owslinks_dict = create_owslinks_dict(s1metadata, granules_paths, bbox_str)
     path = os.path.join(working_dir, 'owslinks.json')
     with open(path, 'w') as f:
         json.dump(owslinks_dict, f, indent=4)
