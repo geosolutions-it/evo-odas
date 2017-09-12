@@ -6,13 +6,13 @@ import os
 import s2reader
 log = logging.getLogger(__name__)
 from pgmagick import Image, Blob
-import zipfile, json
+import 	zipfile, json
 import shutil
 import xml.etree.ElementTree as ET
 from sentinel2.utils import generate_wfs_dict, generate_wcs_dict, generate_wms_dict
 
 ''' This class will create a compressed, low resolution, square shaped thumbnail for the
-original granule. the current approach is saving the created thumbnail inside the zip file
+original granule. the current approach is generating a new folder that will contain all the metadata files if it wasn't created. if it was created, then Sentinel2ThumbnailOperator will delete it and create a new empty one and then append the created thumbnail to it. by this way, later operators can append to this directory per product.
 '''
 class Sentinel2ThumbnailOperator(BaseOperator):
 
@@ -31,20 +31,22 @@ class Sentinel2ThumbnailOperator(BaseOperator):
             for product in self.downloaded_products.keys():
                 with s2reader.open(product) as safe_product:
                   for granule in safe_product.granules:
-                     try:
-                         zipf = zipfile.ZipFile(product, 'a')
+                         zipf = zipfile.ZipFile(product, 'r')
                          imgdata = zipf.read(granule.pvi_path,'r')
                          img = Blob(imgdata)
                          img = Image(img)
                          img.scale(self.thumb_size_x+'x'+self.thumb_size_y)
                          img.quality(80)
-                         thumbnail_path = product.split(".")[0]+".jpg"
-                         img.write(str(thumbnail_path))
-                         zipf.write(str(thumbnail_path),"product/thumbnail.jpeg")
-                     except:
-                         return False
-            context['task_instance'].xcom_push(key='thumbnail_jpeg_abs_path', value=str(thumbnail_path))
-            context['task_instance'].xcom_push(key='ids', value=ids)
+                         thumbnail_name = product.strip(".zip")+"/thumbnail.jpg"
+                         if os.path.isdir(product.strip(".zip")):
+                              product_rmdir_cmd = "rm -r {} ".format(product.strip(".zip"))
+                              product_rmdir_BO = BashOperator(task_id="product_rmdir_{}".format(product.split("/")[-1].strip(".zip")), bash_command = product_rmdir_cmd)
+                              product_rmdir_BO.execute(context)
+                         product_mkdir_cmd = "mkdir {} ".format(product.strip(".zip"))
+                         product_mkdir_BO = BashOperator(task_id="product_mkdir_{}".format(product.split("/")[-1].strip(".zip")), bash_command = product_mkdir_cmd)
+                         product_mkdir_BO.execute(context)
+                         img.write(str(thumbnail_name))
+
 
 '''
 This class is creating the product.zip contents and passing the absolute path per every file so that the Sentinel2ProductZipOperator can generate the product.zip file.
@@ -124,14 +126,10 @@ class Sentinel2MetadataOperator(BaseOperator):
 
             # Note here that the SRID is a property of the granule not the product
             final_metadata_dict["properties"]["crs"] = granule.srid
-            with open('product.json', 'w') as product_outfile:
+            with open(product.strip(".zip")+'/product.json', 'w') as product_outfile:
                 json.dump(final_metadata_dict, product_outfile,indent=4)
-            product_zipf = zipfile.ZipFile(product, 'a')
-            product_zipf.write("product.json","product/product.json")
-            with open('granules.json', 'w') as granules_outfile:
+            with open(product.strip(".zip")+'/granules.json', 'w') as granules_outfile:
                 json.dump(final_granules_dict, granules_outfile, indent=4)
-            product_zipf.write("granules.json","product/granules.json")
-            #Generate GetCapabilities operations for all the wcs, wms and wfs services
             for service in services:
                     service_name, service_calls = service.items()[0]
                     links.append({"offering": "http://www.opengis.net/spec/owc-atom/1.0/req/{}".format(service_name),
@@ -141,13 +139,11 @@ class Sentinel2MetadataOperator(BaseOperator):
                                   "href": "${BASE_URL}"+"/{}/{}/ows?service={}&request=GetCapabilities&version=1.3.0&CQL_FILTER=eoParentIdentifier='{}'".format(self.GS_WORKSPACE, self.GS_LAYER, service_name,s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
             #Here we generate the dictionaries of GetMap, GetFeature and GetCoverage operations from util dir
             links.append(generate_wfs_dict(s2_product, self.GS_WORKSPACE, self.GS_LAYER))
-            links.append(generate_wcs_dict(granule_coordinates, s2_product, self.coverage_id))
+            links.append(generate_wcs_dict(granule_coordinates, self.GS_WORKSPACE, s2_product, self.coverage_id))
             links.append(generate_wms_dict(self.GS_WORKSPACE, self.GS_LAYER, granule_coordinates, self.GS_WMS_WIDTH, self.GS_WMS_HEIGHT, self.GS_WMS_FORMAT, s2_product))
             final_owslinks_dict = {"links":links}
-            with open('owsLinks.json', 'w') as owslinks_outfile:
+            with open(product.strip(".zip")+'/owsLinks.json', 'w') as owslinks_outfile:
                   json.dump(final_owslinks_dict, owslinks_outfile, indent=4)
-            product_zipf.write("owsLinks.json","product/owsLinks.json")
-            product_zipf.close()
         archives = context['task_instance'].xcom_pull('dhus_download_task', key='downloaded_products_paths')
         archives_list = archives.split()
 
@@ -192,6 +188,8 @@ class Sentinel2MetadataOperator(BaseOperator):
                 wld_file.write(geo_position.find("ULY").text + "\n")
             parent_dir = os.path.dirname(jp2_files_paths[0])
             self.custom_archived.append(os.path.dirname(parent_dir))
+            log.info(os.path.dirname(parent_dir))
+        log.info(self.custom_archived)
         context['task_instance'].xcom_push(key='downloaded_products', value=self.downloaded_products)
         context['task_instance'].xcom_push(key='downloaded_products_with_wldprj', value=' '.join(self.custom_archived))
 
@@ -213,16 +211,15 @@ class Sentinel2ProductZipOperator(BaseOperator):
         self.downloaded_products = context['task_instance'].xcom_pull('dhus_metadata_task', key='downloaded_products')
 
         for zipf in self.downloaded_products.keys():
-            with zipfile.ZipFile(zipf) as zf:
-                dirname = os.path.join(self.target_dir, os.path.splitext(os.path.basename(zipf))[0])
-                for item_file in self.generated_files:
-                    zf.extract(item_file, path=dirname)
             for ph in self.placeholders:
-                shutil.copyfile(ph, os.path.join(dirname, os.path.join("product",ph.split("/")[-1])))
+                shutil.copyfile(ph, os.path.join(zipf.strip(".zip"), ph.split("/")[-1]))
             product_zip_path = os.path.join(os.path.join(zipf.strip(".zip"), "product.zip"))
-            product_zip = zipfile.ZipFile(product_zip_path , 'a')
-            for item in os.listdir(os.path.join(zipf.strip(".zip"),"product")):
-                product_zip.write(os.path.join(zipf.strip(".zip"),"product",item), item)
+            product_zip = zipfile.ZipFile(product_zip_path , 'w')
+            for item in os.listdir(zipf.strip(".zip")):
+                if os.path.isfile(os.path.join(zipf.strip(".zip"),item)) and not item.endswith(".zip"):
+                     log.info("inside IF")
+                     log.info(item)
+                     product_zip.write(os.path.join(zipf.strip(".zip"),item), item)
             product_zip.close()
             context['task_instance'].xcom_push(key='product_zip_path', value=product_zip_path)
 
