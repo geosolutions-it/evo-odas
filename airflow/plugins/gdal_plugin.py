@@ -25,11 +25,11 @@ def get_gdaladdo_command(source, overview_levels, resampling_method,
         "--config COMPRESS_OVERVIEW {}".format(compress_overview) if
         compress_overview is not None else ""
     )
-    return "gdaladdo -r {method} {compress} {src} {levels}".format(
+    return "gdaladdo {compress} -r {method} {src} {levels}".format(
         method=resampling_method,
         compress=compress_token,
         src=source,
-        levels=overview_levels
+        levels=" ".join(str(level) for level in overview_levels),
     )
 
 
