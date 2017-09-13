@@ -283,6 +283,7 @@ class Sentinel2ProductZipOperator(BaseOperator):
             log.info("Nothing to process.")
             return
                 
+        product_zip_paths=list()
         for zipf in self.downloaded_products.keys():
             log.info("Product: {}".format(zipf))
             with zipfile.ZipFile(zipf) as zf:
@@ -296,8 +297,9 @@ class Sentinel2ProductZipOperator(BaseOperator):
             for item in os.listdir(os.path.join(zipf.strip(".zip"),"product")):
                 product_zip.write(os.path.join(zipf.strip(".zip"),"product",item), item)
             product_zip.close()
-            context['task_instance'].xcom_push(key='product_zip_path', value=product_zip_path)
-            return product_zip_path
+            product_zip_paths.append(product_zip_path)
+        context['task_instance'].xcom_push(key='product_zip_paths', value=product_zip_paths)
+        return product_zip_paths
 
 class SENTINEL2Plugin(AirflowPlugin):
     name = "sentinel2_plugin"

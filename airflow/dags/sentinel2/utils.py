@@ -21,26 +21,28 @@ def publish_product(geoserver_username, geoserver_password, geoserver_rest_endpo
 
     if get_inputs_from != None:
         log.info("Getting inputs from: " +get_inputs_from)
-        zip_file = task_instance.xcom_pull(task_ids=get_inputs_from, key=XCOM_RETURN_KEY)
+        zip_files = task_instance.xcom_pull(task_ids=get_inputs_from, key=XCOM_RETURN_KEY)
     else:
         log.info("Getting inputs from: product_zip_task" )
-        zip_file = task_instance.xcom_pull('product_zip_task', key='product_zip_path')
+        zip_files = task_instance.xcom_pull('product_zip_task', key='product_zip_paths')
     
-    log.info("zip_file_path: {}".format(zip_file))
-    if zip_file is not None:
-        # POST product.zip
-        d = open(zip_file, 'rb').read()
-        a = requests.auth.HTTPBasicAuth(geoserver_username, geoserver_password)
-        h = {'Content-type': 'application/zip'}
+    log.info("zip_file_paths: {}".format(zip_files))
+    if zip_files is not None:
+        for zip_file in zip_files:
+            # POST product.zip
+            d = open(zip_file, 'rb').read()
+            a = requests.auth.HTTPBasicAuth(geoserver_username, geoserver_password)
+            h = {'Content-type': 'application/zip'}
 
-        r = requests.post(geoserver_rest_endpoint,
-            auth=a,
-            data=d,
-            headers=h)
+            r = requests.post(geoserver_rest_endpoint,
+                auth=a,
+                data=d,
+                headers=h)
 
-        log.info('response\n{}'.format(pformat(r.text)))
-        if not r.status_code == requests.codes.ok:
-            r.raise_for_status()
+            log.info('response\n{}'.format(pformat(r.text)))
+            if not r.status_code == requests.codes.ok:
+                #r.raise_for_status()
+                log.warn("Couldn't publish {} (HTTP {})".format(zip_file, r.status_code))
     else:
         log.warn("No product.zip found.")
 
