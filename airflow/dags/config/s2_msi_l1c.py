@@ -8,12 +8,11 @@ import config
 id = "S2_MSI_L1C"
 filename_filter = "S2*_MSIL1C*"
 platformname = 'Sentinel-2'
-
 collection_dir = os.path.join(config.base_dir, platformname, id)
 download_dir = os.path.join(collection_dir,"download")
 process_dir = os.path.join(collection_dir,"process")
 upload_dir = os.path.join(collection_dir,"upload")
-repository_dir = os.path.join(config.repository_base_dir, "SENTINEL/S2/", id, "v0")
+repository_dir = os.path.join(collection_dir,"repository")
 
 #
 # DHUS specific
@@ -35,7 +34,7 @@ dhus_search_keywords = {
 #
 # GeoServer
 #
-geoserver_workspace = "evoodas"
+geoserver_workspace = "sentinel"
 geoserver_layer = "SENTINEL2"
 geoserver_coverage = "SENTINEL2"
 geoserver_oseo_collection="SENTINEL2"
@@ -52,3 +51,8 @@ bands_res = {
     '60':("B01","B09","B10")
 }
 bands_dict = {'B01':1,'B02':2,'B03':3,'B04':4,'B05':5,'B06':6,'B07':7,'B08':8,'B8A':9,'B09':10,'B10':11,'B11':12,'B12':13,'TCI':14}
+
+try:
+    from override.s2_msi_l1c import *
+except:
+    pass
