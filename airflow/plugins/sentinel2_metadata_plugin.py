@@ -90,7 +90,6 @@ class Sentinel2ThumbnailOperator(BaseOperator):
                             break
                         except BaseException as e:
                             log.error("Unable to extract thumbnail from {}: {}".format(product, e))
-
             return thumbnail_paths
             
 '''
@@ -207,6 +206,8 @@ class Sentinel2MetadataOperator(BaseOperator):
             final_owslinks_dict = {"links":links}
             with open(product.strip(".zip")+'/owsLinks.json', 'w') as owslinks_outfile:
                   json.dump(final_owslinks_dict, owslinks_outfile, indent=4)
+            product_zipf.write("owsLinks.json","product/owsLinks.json")
+            product_zipf.close()
 
         self.custom_archived = []
         for archive_line in self.downloaded_products.keys():
