@@ -70,9 +70,10 @@ download_task = DHUSDownloadOperator(task_id='download_product_task',
                                      dhus_url=CFG.dhus_url,
                                      dhus_user=CFG.dhus_username,
                                      dhus_pass=CFG.dhus_password,
-                                     download_max=2,
+                                     download_max=S2MSIL1C.dhus_filter_max,
                                      download_dir=S2MSIL1C.download_dir,
                                      get_inputs_from=search_task.task_id,
+                                     download_timeout=timedelta(hours=8),
                                      dag=dag)
 
 # Rsync Archive Task
