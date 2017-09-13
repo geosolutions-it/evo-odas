@@ -130,7 +130,7 @@ class DHUSDownloadOperator(BaseOperator):
 
         # generate a dict of products from 
         # 1) the list of product_ids
-        # 2) in case 1) is None that check the XCOM key in 'get_inputs_from'
+        # 2) in case 1) is None then check the XCOM key in 'get_inputs_from'
         self.products = dict()
         if self.product_ids != None and len(self.product_ids) != 0:
             for product_id in self.product_ids:

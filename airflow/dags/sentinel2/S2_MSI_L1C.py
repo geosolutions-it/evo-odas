@@ -32,7 +32,7 @@ default_args = {
 
 print("#######################")
 print("ID: {}".format(S2MSIL1C.id))
-print("DHUS:  {} @ {} for {}".format(CFG.dhus_username, CFG.dhus_url, S2MSIL1C.dhus_search_bbox) )
+print("DHUS:  {} @ {}, Region: {}".format(CFG.dhus_username, CFG.dhus_url, S2MSIL1C.dhus_search_bbox) )
 print("GeoServer: {} @ {}".format(CFG.geoserver_username, CFG.geoserver_rest_url) )
 print("RSYNC: {} @ {} using {}".format(CFG.rsync_username, CFG.rsync_hostname, CFG.rsync_ssh_key))
 print("Date: {} / {}".format(S2MSIL1C.dhus_search_startdate, S2MSIL1C.dhus_search_enddate))
@@ -63,8 +63,12 @@ search_task = DHUSSearchOperator(task_id='search_product_task',
 
 # DHUS Download Task Operator
 # 
-# product_ids={'7c08fc13-934d-422a-aee5-260966a0f6ec'}
+# if a specific product should be downloaded, use
+# product_ids={'7c08fc13-934d-422a-aee5-260966a0f6ec'} 
+# or
 # product_ids=('7c08fc13-934d-422a-aee5-260966a0f6ec','b6a67950-3b72-4684-9d4f-ce078d38b54a')
+# instead of 
+# 'get_inputs_from=...'
 #
 download_task = DHUSDownloadOperator(task_id='download_product_task',
                                      dhus_url=CFG.dhus_url,
