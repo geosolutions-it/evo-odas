@@ -206,8 +206,6 @@ class Sentinel2MetadataOperator(BaseOperator):
             final_owslinks_dict = {"links":links}
             with open(product.strip(".zip")+'/owsLinks.json', 'w') as owslinks_outfile:
                   json.dump(final_owslinks_dict, owslinks_outfile, indent=4)
-            product_zipf.write("owsLinks.json","product/owsLinks.json")
-            product_zipf.close()
 
         self.custom_archived = []
         for archive_line in self.downloaded_products.keys():
