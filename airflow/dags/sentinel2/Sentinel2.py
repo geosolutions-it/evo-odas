@@ -100,9 +100,9 @@ archive_wldprj_task = RSYNCOperator(task_id="sentinel2_upload_granules",
 
 # Sentinel-2 Product.zip Operator.
 # The following variables are just pointing to placeholders until we implement the real files.
-base_dir = "/usr/local/airflow/metadata-ingestion/templates"
-placeholders_list = [os.path.join(base_dir,"metadata.xml"), os.path.join(base_dir,"owsLinks.json"), os.path.join(base_dir,"product_abstract.html")]
-generated_files_list = ['product/product.json','product/granules.json','product/thumbnail.jpeg']
+CWR = os.path.dirname(os.path.realpath(__file__))
+placeholders_list = [os.path.join(CWR,"metadata.xml"), os.path.join(CWR,"product_abstract.html")]
+generated_files_list = ['product/product.json','product/granules.json','product/thumbnail.jpeg', 'product/owsLinks.json']
 
 product_zip_task = Sentinel2ProductZipOperator(task_id = 'product_zip_task',
                                                target_dir = sentinel2_config["product_zip_target_dir"],
