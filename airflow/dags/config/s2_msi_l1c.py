@@ -8,7 +8,6 @@ import config
 id = "S2_MSI_L1C"
 filename_filter = "S2*_MSIL1C*"
 platformname = 'Sentinel-2'
-
 collection_dir = os.path.join(config.base_dir, platformname, id)
 download_dir = os.path.join(collection_dir,"download")
 process_dir = os.path.join(collection_dir,"process")

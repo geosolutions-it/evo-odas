@@ -8,12 +8,11 @@ import config
 id = "S1_GRD_1SDH"
 filename_filter = "S1?_EW_GRDM_1SDH*"
 platformname = 'Sentinel-1'
-
 collection_dir = os.path.join(config.base_dir, platformname, id)
 download_dir = os.path.join(collection_dir,"download")
 process_dir = os.path.join(collection_dir,"process")
 upload_dir = os.path.join(collection_dir,"upload")
-repository_dir = os.path.join(config.repository_base_dir, "SENTINEL/S1/", id, "v0")
+repository_dir = os.path.join(collection_dir,"repository")
 
 #
 # DHUS specific
@@ -31,7 +30,22 @@ dhus_search_keywords = {
         'orbitdirection':'Descending',
 }
 
+#
+# GeoServer
+#
+geoserver_workspace = "sentinel"
+geoserver_layer = "SENTINEL1"
+geoserver_coverage = "SENTINEL1"
+geoserver_oseo_collection="SENTINEL1"
+geoserver_oseo_wms_width = 512
+geoserver_oseo_wms_height = 512
+geoserver_oseo_wms_format = "tiff"
+
+#
+# Product
+#
+
 try:
-    from override.s2_msi_l1c import *
+    from override.s1_grd_1sdh import *
 except:
     pass
