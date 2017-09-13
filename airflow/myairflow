@@ -13,13 +13,13 @@ export AIRFLOW_DOCKER_DATA=$BASE_DIR/data
 export AIRFLOW_DOCKER_IMAGE="evoodas/airflow_testing:latest"
 
 function container_id()     	{ echo $($DOCKER ps -a | grep "$AIRFLOW_DOCKER_IMAGE" | cut -d ' ' -f 1); }
-function exit_not_found()   	{ echo "[FATAL] Unable to find a container '$AIRFLOW_DOCKER_IMAGE'."; exit 1; }
-function exit_already_running() { echo "[FATAL] Container is already running.."; docker ps -a | grep "$AIRFLOW_DOCKER_IMAGE"; exit 1; }
+function exit_not_found()   	{ echo "[FATAL] Unable to find a container '$AIRFLOW_DOCKER_IMAGE'."; }
+function exit_already_running() { echo "[FATAL] Container is already running.."; docker ps -a | grep "$AIRFLOW_DOCKER_IMAGE"; }
 function warn_not_found()   	{ echo "[WARN] Container not found: Is '$AIRFLOW_DOCKER_IMAGE' stopped or removed?"; }
 
 function airflow_init() {
     echo "### Initialising local docker-airflow data directory.."
-    echo "Creating data directory for downloads in '$$AIRFLOW_DOCKER_DATA/download'.."
+    echo "Creating data directory for downloads in '$AIRFLOW_DOCKER_DATA/download'.."
     mkdir -p $AIRFLOW_DOCKER_DATA/download
     chmod -R ugo+rwx $AIRFLOW_DOCKER_DATA
 }
@@ -35,9 +35,12 @@ function airflow_start() {
     if [ -z "$(container_id)" ]; then
     	cd $AIRFLOW_DOCKER_DIR && \
     	$DOCKER run \
-        -v ${BASE_DIR}:/usr/local/evoodas/geosolutions/airflow \
+        -v ${BASE_DIR}/../metadata-ingestion:/usr/local/evoodas/metadata-ingestion \
+        -v ${BASE_DIR}:/usr/local/evoodas/airflow \
         -v ${AIRFLOW_DOCKER_DATA}:/var/data/ \
         -e LOAD_EX=n \
+        -e VAULT_ADDR=$VAULT_ADDR \
+        -e VAULT_TOKEN=$VAULT_TOKEN \
         -d -p 8080:8080 \
         $AIRFLOW_DOCKER_IMAGE
     else
@@ -77,9 +80,11 @@ function airflow_login() {
 
 function airflow_exec() {
     echo "### Executing '$*' in $AIRFLOW_DOCKER_IMAGE.."
-	[ ! -z "$(container_id)" ] && \
-        docker exec $(container_id) $* || \
+	if [ ! -z "$(container_id)" ]; then
+        docker exec $(container_id) $*
+    else
         warn_not_found
+    fi
 }
 
 function airflow_remove() {
@@ -113,8 +118,16 @@ function airflow_update() {
 function airflow_test() {
     echo "### Running Tests $(container_id).."
     if [ ! -z "$(container_id)" ]; then
-    	airflow_exec airflow test download_dag dhus_search_task 2017-01-01
-    	airflow_exec airflow test download_dag dhus_download_task 2017-01-01
+        airflow_exec "env"
+        airflow_exec airflow resetdb -y
+        airflow_exec airflow test S2_MSI_L1C search_product_task 2017-01-01
+        airflow_exec airflow test S2_MSI_L1C download_product_task 2017-01-01
+        airflow_exec airflow test S2_MSI_L1C archive_product_task 2017-01-01
+        airflow_exec airflow test S2_MSI_L1C extract_thumbnail_task 2017-01-01
+        airflow_exec airflow test S2_MSI_L1C extract_metadata_task 2017-01-01
+        airflow_exec airflow test S2_MSI_L1C archive_wldprj_task 2017-01-01
+        airflow_exec airflow test S2_MSI_L1C create_product_zip_task 2017-01-01
+        airflow_exec airflow test S2_MSI_L1C publish_product_task 2017-01-01
     else
     	exit_not_found
     fi

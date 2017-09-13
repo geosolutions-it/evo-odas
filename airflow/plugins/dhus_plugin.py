@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
+from airflow.models import XCOM_RETURN_KEY
 
 from sentinelsat.sentinel import SentinelAPI, read_geojson, geojson_to_wkt
 
@@ -59,7 +60,7 @@ class DHUSSearchOperator(BaseOperator):
 
         print("Execute DHUS Search.. ")
 
-        # search products
+        # search products 
         api = SentinelAPI(self.dhus_user, self.dhus_pass, self.dhus_url)
         try:
             footprint = geojson_to_wkt(read_geojson(self.geojson_bbox))
@@ -92,8 +93,9 @@ class DHUSDownloadOperator(BaseOperator):
             dhus_user,
             dhus_pass,
             download_dir,
-            download_timeout=timedelta(hours=5),
+            download_timeout=timedelta(hours=1),
             download_max=10,
+            get_inputs_from=None,
             product_ids=None,
             *args, **kwargs):
         self.dhus_url = dhus_url
@@ -102,8 +104,9 @@ class DHUSDownloadOperator(BaseOperator):
         self.download_max = int(download_max)
         self.download_dir = download_dir
         self.product_ids = product_ids
+        self.get_inputs_from = get_inputs_from
         
-        print("Init DHUS Download.. ")        
+        print("Init DHUS Download.. ")
         
         super(DHUSDownloadOperator, self).__init__(execution_timeout=download_timeout,*args, **kwargs)
 
@@ -115,28 +118,38 @@ class DHUSDownloadOperator(BaseOperator):
         #log.info('API Password: %s', self.dhus_pass)
         log.info('Max Downloads: %s', self.download_max)
         log.info('Download Directory: %s', self.download_dir)
+        log.info('Input from: %s', self.get_inputs_from)
+        log.info('Product IDs: %s', self.product_ids)
 
         log.info("Execute DHUS Download.. ")
         
+        # create the download directory if it does not exists
         if not os.path.exists(self.download_dir):
             log.info("Creating directory for download: {}".format(self.download_dir))
             os.makedirs(self.download_dir)
 
-        if self.product_ids == None:
-            self.product_ids = []
-            
-        # retrieving products from previous search step
-        self.products = context['task_instance'].xcom_pull('dhus_search_task', key='searched_products')
-        log.info("Retrieved {} products:\n{}".format(len(self.products), pprint.pprint(self.products)))
-
-        if not self.products or len(self.products) == 0:
+        # generate a dict of products from 
+        # 1) the list of product_ids
+        # 2) in case 1) is None then check the XCOM key in 'get_inputs_from'
+        self.products = dict()
+        if self.product_ids != None and len(self.product_ids) != 0:
+            for product_id in self.product_ids:
+                self.products[product_id]=""
+            print("Download request for {} products via IDs:\n{}".format(len(self.product_ids),self.products))
+        elif self.get_inputs_from != None:
+            self.products = context['task_instance'].xcom_pull(task_ids=self.get_inputs_from, key=XCOM_RETURN_KEY)
+            print("Downloading request for {} products via XCOM:\n{}".format(len(self.products), self.products))
+        else:
+            # exit gracefully if no products are found
             log.info('no products to process')
-            return True
+            return None
     
-        if len(self.product_ids) > self.download_max:
-            log.warn("Found products ({}) exceeds download limit ({})".format(len(self.product_ids), self.download_max))
+        # log warning in case the amount of products exceed the limit
+        if len(self.products) > self.download_max:
+            log.warn("Found products ({}) exceeds download limit ({})".format(len(self.products), self.download_max))
     
-        log.info('Downloading up to {} products..'.format(self.download_max))
+        # download all files via it's ID
+        log.info('Starting downloading..')
         product_downloaded = {}
         api = SentinelAPI(self.dhus_user, self.dhus_pass, self.dhus_url)
         for product_id in self.products.keys():
@@ -152,6 +165,7 @@ class DHUSDownloadOperator(BaseOperator):
             # If file already downloaded move on to next one?
             product_downloaded[path] = downloaded;
         
+        # print summary and push products to XCOM
         log.debug("Downloaded {} products:\n{}".format(len(product_downloaded),pp.pprint(product_downloaded)))
         context['task_instance'].xcom_push(key='downloaded_products', value=product_downloaded)
         context['task_instance'].xcom_push(key='downloaded_products_paths', value=' '.join(product_downloaded.keys()))

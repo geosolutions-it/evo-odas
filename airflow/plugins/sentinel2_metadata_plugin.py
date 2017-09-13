@@ -1,6 +1,7 @@
 from airflow.operators import BaseOperator, BashOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
+from airflow.models import XCOM_RETURN_KEY
 import logging
 import os
 import s2reader
@@ -17,57 +18,118 @@ original granule. the current approach is generating a new folder that will cont
 class Sentinel2ThumbnailOperator(BaseOperator):
 
         @apply_defaults
-        def __init__(self, thumb_size_x, thumb_size_y, *args, **kwargs):
+        def __init__(self, 
+            thumb_size_x, 
+            thumb_size_y,
+            input_product=None,
+            output_dir=None,
+            get_inputs_from=None,
+            *args, **kwargs):
                 self.thumb_size_x = thumb_size_x
                 self.thumb_size_y = thumb_size_y
+                self.input_product = input_product
+                self.output_dir = output_dir
+                self.get_inputs_from = get_inputs_from
                 super(Sentinel2ThumbnailOperator, self).__init__(*args, **kwargs)
 
         def execute(self, context):
-            self.downloaded_products = context['task_instance'].xcom_pull('dhus_download_task', key='downloaded_products')
-            log.info(self.downloaded_products)
+            products=list()
             ids=[]
-            for p in self.downloaded_products:
-                ids.append(self.downloaded_products[p]["id"])
-            for product in self.downloaded_products.keys():
+
+            if self.input_product is not None:
+                log.info("Processing single product: " +self.input_product)
+                products.append(self.input_product)
+            elif self.get_inputs_from is not None:
+                log.info("Getting inputs from: " +self.get_inputs_from)
+                inputs=context['task_instance'].xcom_pull(task_ids=self.get_inputs_from, key=XCOM_RETURN_KEY)
+                for input in inputs:
+                    products.append(input)                
+            else:
+                self.downloaded_products = context['task_instance'].xcom_pull('dhus_download_task', key='downloaded_products')
+                if self.downloaded_products is not None and len(self.downloaded_products)!=0:
+                    products=self.downloaded_products.keys()
+                    log.info(self.downloaded_products)
+                    for p in self.downloaded_products:
+                        ids.append(self.downloaded_products[p]["id"])
+                    print "downloaded products keys :",self.downloaded_products.keys()[0]
+            
+            if products is None or len(products)==0:
+                log.info("Nothing to process.")
+                return
+
+            thumbnail_paths=list()
+            for product in products:
+                log.info("Processing {}".format(product))
                 with s2reader.open(product) as safe_product:
-                  for granule in safe_product.granules:
-                         zipf = zipfile.ZipFile(product, 'r')
-                         imgdata = zipf.read(granule.pvi_path,'r')
-                         img = Blob(imgdata)
-                         img = Image(img)
-                         img.scale(self.thumb_size_x+'x'+self.thumb_size_y)
-                         img.quality(80)
-                         thumbnail_name = product.strip(".zip")+"/thumbnail.jpg"
-                         if os.path.isdir(product.strip(".zip")):
-                              product_rmdir_cmd = "rm -r {} ".format(product.strip(".zip"))
-                              product_rmdir_BO = BashOperator(task_id="product_rmdir_{}".format(product.split("/")[-1].strip(".zip")), bash_command = product_rmdir_cmd)
-                              product_rmdir_BO.execute(context)
-                         product_mkdir_cmd = "mkdir {} ".format(product.strip(".zip"))
-                         product_mkdir_BO = BashOperator(task_id="product_mkdir_{}".format(product.split("/")[-1].strip(".zip")), bash_command = product_mkdir_cmd)
-                         product_mkdir_BO.execute(context)
-                         img.write(str(thumbnail_name))
-
-
+                    for granule in safe_product.granules:
+                        try:
+                            zipf = zipfile.ZipFile(product, 'r')
+                            imgdata = zipf.read(granule.tci_path,'r')
+                            img = Blob(imgdata)
+                            img = Image(img)
+                            img.scale(self.thumb_size_x+'x'+self.thumb_size_y)
+                            img.quality(80)
+                            thumbnail_name = product.strip(".zip")+"/thumbnail.jpg"
+                            if os.path.isdir(product.strip(".zip")):
+                                product_rmdir_cmd = "rm -r {} ".format(product.strip(".zip"))
+                                product_rmdir_BO = BashOperator(task_id="product_rmdir_{}".format(product.split("/")[-1].strip(".zip")), bash_command = product_rmdir_cmd)
+                                product_rmdir_BO.execute(context)
+                            product_mkdir_cmd = "mkdir {} ".format(product.strip(".zip"))
+                            product_mkdir_BO = BashOperator(task_id="product_mkdir_{}".format(product.split("/")[-1].strip(".zip")), bash_command = product_mkdir_cmd)
+                            product_mkdir_BO.execute(context)
+                            if self.output_dir is not None:
+                                thumbnail_name=os.path.join(self.output_dir,"thumbnail.jpeg")
+                                log.info("Writing thumbnail to {}".format(thumbnail_name))
+                                img.write(thumbnail_name)
+                            else:
+                                img.write(str(thumbnail_name))
+                            thumbnail_paths.append(thumbnail_name)
+                            # XCOM expects a single file so we push it here:
+                            context['task_instance'].xcom_push(key='thumbnail_jpeg_abs_path', value=str(thumbnail_name))
+                            context['task_instance'].xcom_push(key='ids', value=ids)
+                            break
+                        except BaseException as e:
+                            log.error("Unable to extract thumbnail from {}: {}".format(product, e))
+            return thumbnail_paths
+            
 '''
 This class is creating the product.zip contents and passing the absolute path per every file so that the Sentinel2ProductZipOperator can generate the product.zip file.
-Also, this class is creating the .wld and .prj files which are required by Geoserver in order to be publish the granules successfully.
+Also, this class is creating the .wld and .prj files which are required by Geoserver in order to be publish the granules successfully. 
 '''
 class Sentinel2MetadataOperator(BaseOperator):
     @apply_defaults
-    def __init__(self, bands_res, bands_dict, remote_dir, GS_WORKSPACE, GS_LAYER, GS_WMS_WIDTH, GS_WMS_HEIGHT, GS_WMS_FORMAT, coverage_id, *args, **kwargs):
-        self.bands_res = bands_res
-        self.remote_dir = remote_dir
-        self.bands_dict = bands_dict
-        self.GS_WORKSPACE = GS_WORKSPACE
-        self.GS_LAYER = GS_LAYER
-        self.GS_WMS_WIDTH = GS_WMS_WIDTH
-        self.GS_WMS_HEIGHT = GS_WMS_HEIGHT
-        self.GS_WMS_FORMAT = GS_WMS_FORMAT
-        self.coverage_id = coverage_id
-        super(Sentinel2MetadataOperator, self).__init__(*args, **kwargs)
+    def __init__(self, 
+        bands_res,
+        bands_dict,
+        remote_dir,
+        GS_WORKSPACE,
+        GS_LAYER,
+        GS_WMS_WIDTH,
+        GS_WMS_HEIGHT,
+        GS_WMS_FORMAT,
+        coverage_id,
+        get_inputs_from=None,
+        *args, **kwargs):
+            self.bands_res = bands_res
+            self.remote_dir = remote_dir
+            self.bands_dict = bands_dict
+            self.GS_WORKSPACE = GS_WORKSPACE
+            self.GS_LAYER = GS_LAYER
+            self.GS_WMS_WIDTH = GS_WMS_WIDTH
+            self.GS_WMS_HEIGHT = GS_WMS_HEIGHT
+            self.GS_WMS_FORMAT = GS_WMS_FORMAT
+            self.coverage_id = coverage_id
+            self.get_inputs_from = get_inputs_from
+            super(Sentinel2MetadataOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
-        self.downloaded_products = context['task_instance'].xcom_pull('dhus_download_task', key='downloaded_products')
+        if self.get_inputs_from != None:
+            log.info("Getting inputs from: " +self.get_inputs_from)
+            self.downloaded_products = context['task_instance'].xcom_pull(task_ids=self.get_inputs_from, key=XCOM_RETURN_KEY)
+        else:
+            log.info("Getting inputs from: dhus_download_task" )
+            self.downloaded_products = context['task_instance'].xcom_pull('dhus_download_task', key='downloaded_products')
+
         services= [{"wms":("GetCapabilities","GetMap")},{"wfs":("GetCapabilities","GetFeature")},{"wcs":("GetCapabilities","GetCoverage")}]
         for product in self.downloaded_products.keys():
             with s2reader.open(product) as s2_product:
@@ -127,7 +189,7 @@ class Sentinel2MetadataOperator(BaseOperator):
             # Note here that the SRID is a property of the granule not the product
             final_metadata_dict["properties"]["crs"] = granule.srid
             with open(product.strip(".zip")+'/product.json', 'w') as product_outfile:
-                json.dump(final_metadata_dict, product_outfile,indent=4)
+                json.dump(final_metadata_dict, product_outfile,indent=4)                
             with open(product.strip(".zip")+'/granules.json', 'w') as granules_outfile:
                 json.dump(final_granules_dict, granules_outfile, indent=4)
             for service in services:
@@ -144,12 +206,9 @@ class Sentinel2MetadataOperator(BaseOperator):
             final_owslinks_dict = {"links":links}
             with open(product.strip(".zip")+'/owsLinks.json', 'w') as owslinks_outfile:
                   json.dump(final_owslinks_dict, owslinks_outfile, indent=4)
-        archives = context['task_instance'].xcom_pull('dhus_download_task', key='downloaded_products_paths')
-        archives_list = archives.split()
 
         self.custom_archived = []
-
-        for archive_line in archives_list:
+        for archive_line in self.downloaded_products.keys():
             jp2_files_paths = []
             archive_path = archive_line
             archived_product = zipfile.ZipFile(archive_line,'r')
@@ -192,6 +251,7 @@ class Sentinel2MetadataOperator(BaseOperator):
         log.info(self.custom_archived)
         context['task_instance'].xcom_push(key='downloaded_products', value=self.downloaded_products)
         context['task_instance'].xcom_push(key='downloaded_products_with_wldprj', value=' '.join(self.custom_archived))
+        return self.custom_archived
 
 
 '''
@@ -201,16 +261,35 @@ Later, this class will pass the path of the created product.zip to the next task
 class Sentinel2ProductZipOperator(BaseOperator):
 
     @apply_defaults
-    def __init__(self, target_dir, generated_files, placeholders, *args, **kwargs):
-        self.target_dir = target_dir
-        self.generated_files = generated_files
-        self.placeholders = placeholders
-        super(Sentinel2ProductZipOperator, self).__init__(*args, **kwargs)
+    def __init__(
+        self,
+        target_dir,
+        generated_files,
+        placeholders,
+        get_inputs_from=None,
+        *args, **kwargs):
+            self.target_dir = target_dir
+            self.generated_files = generated_files
+            self.placeholders = placeholders
+            self.get_inputs_from = get_inputs_from
+            super(Sentinel2ProductZipOperator, self).__init__(*args, **kwargs)            
 
     def execute(self, context):
-        self.downloaded_products = context['task_instance'].xcom_pull('dhus_metadata_task', key='downloaded_products')
+        if self.get_inputs_from != None:
+            log.info("Getting inputs from: " +self.get_inputs_from)
+            self.downloaded_products = context['task_instance'].xcom_pull(task_ids=self.get_inputs_from, key=XCOM_RETURN_KEY)
+        else:
+            log.info("Getting inputs from: dhus_metadata_task" )
+            self.downloaded_products = context['task_instance'].xcom_pull('dhus_metadata_task', key='downloaded_products')
 
+        # stop processing if there are no products
+        if self.downloaded_products is None:
+            log.info("Nothing to process.")
+            return
+
+        product_zip_paths=list()
         for zipf in self.downloaded_products.keys():
+            log.info("Product: {}".format(zipf))
             for ph in self.placeholders:
                 shutil.copyfile(ph, os.path.join(zipf.strip(".zip"), ph.split("/")[-1]))
             product_zip_path = os.path.join(os.path.join(zipf.strip(".zip"), "product.zip"))
@@ -221,7 +300,9 @@ class Sentinel2ProductZipOperator(BaseOperator):
                      log.info(item)
                      product_zip.write(os.path.join(zipf.strip(".zip"),item), item)
             product_zip.close()
+            product_zip_paths.append(product_zip_path)
             context['task_instance'].xcom_push(key='product_zip_path', value=product_zip_path)
+        return product_zip_paths
 
 class SENTINEL2Plugin(AirflowPlugin):
     name = "sentinel2_plugin"

@@ -1,4 +1,4 @@
-FROM puckel/docker-airflow
+FROM puckel/docker-airflow:1.8.1
 
 USER root
 
@@ -39,7 +39,7 @@ RUN set -ex \
         /usr/share/doc-base
 
 # Compile GDAL
-ENV GDAL_VERSION 2.1.3
+ENV GDAL_VERSION 2.2.1
 RUN cd /tmp \
     && apt-get update -yqq \
     && apt-get install pkg-config \
@@ -49,7 +49,7 @@ RUN cd /tmp \
     && tar -xzf gdal-$GDAL_VERSION.tar.gz \
     && cd gdal-$GDAL_VERSION \
     && ./configure --with-python \
-    && make \
+    && make -j 4 \
     && make install \
     && cd /tmp \
     && rm -r gdal-src
@@ -57,7 +57,7 @@ RUN cd /tmp \
 #
 # Install dependencies for s2reader
 #
-RUN apt-get update -yqq \
+RUN apt-get update -yqq \ 
     && apt-get install -yqq libxml2-dev libxslt-dev \
     && pip install --upgrade pip \
     && pip install shapely numpy lxml \
@@ -73,8 +73,8 @@ RUN apt-get update -yqq \
 #
 # Install dependencies for evo-odas.git
 #
-RUN apt-get update -yqq \
-    && apt-get install -yqq libpq-dev python-dev libgraphicsmagick++1-dev libboost-python-dev curl build-essential libcurl4-openssl-dev nano vim \
+RUN apt-get update -yqq \ 
+    && apt-get install -yqq libpq-dev python-dev libgraphicsmagick++1-dev libboost-python-dev curl build-essential libcurl4-openssl-dev nano vim rsync \
     && pip install sentinelsat Jinja2 pg_simple pgmagick gsconfig \
     && apt-get clean \
     && rm -rf \
@@ -90,6 +90,7 @@ RUN apt-get update -yqq \
 #
 ENV EVOODAS_HOME="/usr/local/evoodas" \
     EVOODAS_USER="airflow"
+
 RUN mkdir $EVOODAS_HOME \
     && cd $EVOODAS_HOME \
     && git clone https://github.com/ungarj/s2reader.git \
@@ -100,7 +101,7 @@ RUN mkdir $EVOODAS_HOME \
 # Install Utilities
 #
 RUN apt-get update -yqq \
-    && apt-get install -yqq openssh-client rsync \
+    && apt-get install -yqq openssh-client rsync postgresql-client \
     && apt-get clean \
     && rm -rf \
         /var/lib/apt/lists/* \
@@ -108,21 +109,8 @@ RUN apt-get update -yqq \
         /var/tmp/* \
         /usr/share/man \
         /usr/share/doc \
-        /usr/share/doc-base
-
-#
-# Install PostgreSQL client
-#
-RUN apt-get update -yqq \
-    && apt-get install -yqq postgresql-client \
-    && apt-get clean \
-    && rm -rf \
-        /var/lib/apt/lists/* \
-        /tmp/* \
-        /var/tmp/* \
-        /usr/share/man \
-        /usr/share/doc \
-        /usr/share/doc-base
+        /usr/share/doc-base \
+    && pip install hvac
 
 # Copy Configuration
 COPY airflow.cfg /usr/local/airflow/airflow.cfg
