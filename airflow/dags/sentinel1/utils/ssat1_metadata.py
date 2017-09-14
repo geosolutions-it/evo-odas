@@ -31,6 +31,8 @@ GS_WCS_SCALE_I='0.1'
 GS_WCS_SCALE_J='0.1'
 GS_WCS_FORMAT="geotiff"
 
+# Band's numbers for S1
+band_number = {"hv":1,"hh":2, "vv":1, "vh":2}
 
 WORKING_DIR='/var/data/working'
 
@@ -125,7 +127,8 @@ def collect_granules_metadata(granules_paths, granules_upload_dir):
                 "coordinates": None
             },
             "properties": {
-                "location": location
+                "location": location,
+                "band"    : band_number[granule_name.split("-")[3]]
             }
         }
         datastore = gdal.Open(granule)
