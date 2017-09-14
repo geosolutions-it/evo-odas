@@ -14,6 +14,8 @@ repository_base_dir = os.getenv('REPOSITORY_DIR',os.path.join(base_dir, 'reposit
 dhus_url = 'https://scihub.copernicus.eu/dhus'
 dhus_username = ''
 dhus_password = ''
+dhus_filter_max = 2
+dhus_download_max = dhus_filter_max
 
 geoserver_rest_url = 'http://localhost:8080/geoserver/rest'
 geoserver_username = 'admin'

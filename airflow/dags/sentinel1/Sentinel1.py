@@ -48,7 +48,7 @@ main_dag = DAG(DAG_NAME, description='DAG for searching, filtering and downloadi
           catchup=False)
 
 sentinel1_gdal_task = SubDagOperator(
-    subdag = gdal_processing_sub_dag(DAG_NAME, SUBDAG_NAME, DATE, INTERVAL),
+    subdag = gdal_processing_sub_dag(DAG_NAME, SUBDAG_NAME, DATE, INTERVAL,working_dir="/var/data/working"),
     task_id=SUBDAG_NAME,
     dag=main_dag
 )
@@ -116,6 +116,7 @@ sentinel1_upload_granule_2 = RSYNCOperator(
 metadata_task = S1MetadataOperator(
     task_id="s1_metadata_extraction",
     dag=main_dag,
+    working_dir="/var/data/working",
     product_safe_path=None,
     granules_paths=None,
     granules_upload_dir=ew_grdm_1sdv_config['granules_upload_dir'],

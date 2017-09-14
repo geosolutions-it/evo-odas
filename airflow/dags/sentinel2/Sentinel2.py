@@ -2,7 +2,7 @@ import logging, os
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators import DHUSSearchOperator, DHUSDownloadOperator, Sentinel2ThumbnailOperator, Sentinel2MetadataOperator, Sentinel2ProductZipOperator, RSYNCOperator, BashOperator, PythonOperator
-from sentinel2.utils import publish_product
+from geoserver_plugin import publish_product
 from sentinel1.secrets import dhus_credentials, geoserver_credentials
 from sentinel2.config import sentinel2_config, geoserver_url, geoserver_collection_name
 

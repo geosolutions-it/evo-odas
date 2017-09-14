@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators import DHUSSearchOperator, DHUSDownloadOperator, Sentinel2ThumbnailOperator, Sentinel2MetadataOperator, Sentinel2ProductZipOperator, RSYNCOperator, BashOperator, PythonOperator
 
-from sentinel2.utils import publish_product
+from geoserver_plugin import publish_product
 import config as CFG
 import config.s2_msi_l1c as S2MSIL1C
 
@@ -74,7 +74,7 @@ download_task = DHUSDownloadOperator(task_id='download_product_task',
                                      dhus_url=CFG.dhus_url,
                                      dhus_user=CFG.dhus_username,
                                      dhus_pass=CFG.dhus_password,
-                                     download_max=S2MSIL1C.dhus_filter_max,
+                                     download_max=S2MSIL1C.dhus_download_max,
                                      download_dir=S2MSIL1C.download_dir,
                                      get_inputs_from=search_task.task_id,
                                      download_timeout=timedelta(hours=8),
@@ -116,7 +116,7 @@ archive_wldprj_task = RSYNCOperator(task_id="archive_wldprj_task",
                                     remote_usr = CFG.rsync_username,
                                     ssh_key_file = CFG.rsync_ssh_key, 
                                     remote_dir = S2MSIL1C.repository_dir,
-                                    get_inputs_from=metadata_task.task_id,                              
+                                    get_inputs_from=metadata_task.task_id,                           
                                     dag=dag)
 
 ## Sentinel-2 Product.zip Operator.

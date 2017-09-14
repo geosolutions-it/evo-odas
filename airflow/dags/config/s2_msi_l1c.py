@@ -17,7 +17,8 @@ repository_dir = os.path.join(collection_dir,"repository")
 #
 # DHUS specific
 #
-dhus_filter_max = 2
+dhus_filter_max = 5
+dhus_download_max = dhus_filter_max
 dhus_search_bbox = os.path.join(config.regions_base_dir,'europe.geojson')
 dhus_search_filename = filename_filter
 dhus_search_startdate = datetime.today() - timedelta(days=4)

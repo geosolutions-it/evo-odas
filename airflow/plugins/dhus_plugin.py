@@ -153,8 +153,17 @@ class DHUSDownloadOperator(BaseOperator):
         product_downloaded = {}
         api = SentinelAPI(self.dhus_user, self.dhus_pass, self.dhus_url)
         for product_id in self.products.keys():
+
+            # If download limit reached, stopp and break out
+            # Else if the file already exists, then try next from search
+            product_filename=os.path.join(self.download_dir,self.products[product_id].get("title")+".zip")
             if len(product_downloaded) >= self.download_max:
+                log.info("Limit exceeded, stopping download..")
                 break;
+            elif os.path.exists(product_filename):
+                log.info("Product already downloaded. Continuing..")
+                continue
+
             log.info('Download Product ID {}'.format(product_id))
             downloaded = api.download(product_id, directory_path=self.download_dir);
             path = downloaded['path']
