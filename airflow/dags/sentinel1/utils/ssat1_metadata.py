@@ -256,12 +256,6 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
     if not os.path.exists(working_dir):
         os.makedirs(working_dir)
 
-    # dump product.json to file
-    path = os.path.join(working_dir, 'product.json')
-    with open(path, 'w') as f:
-        json.dump(search_params, f, indent=4)
-    files.append(path)
-
     # create description.html and dump it to file
     tr = TemplatesResolver()
     try:
@@ -305,6 +299,19 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
         json.dump(granules_dict, f, indent=4)
     files.append(path)
 
+    # Use the coordinates from the granules in the product.json as the s1reader seems to
+    # swap the footprint coordinates, see https://github.com/geosolutions-it/evo-odas/issues/192
+    granule_coords=granules_dict.get('features')[0].get('geometry').get('coordinates')
+    #print(">>>>>>>>>>>>>{}".format(granule_coords))
+    search_params['geometry']['coordinates']=granule_coords
+    #print(">>>>>>>>>>>>>{}".format(search_params.get('geometry').get('coordinates')))
+    
+    # dump product.json to file
+    path = os.path.join(working_dir, 'product.json')
+    with open(path, 'w') as f:
+        json.dump(search_params, f, indent=4)
+    files.append(path)
+
     # create owslinks.json and dump it to file
     owslinks_dict = create_owslinks_dict(s1metadata, granules_paths, bbox_str)
     path = os.path.join(working_dir, 'owslinks.json')
@@ -335,3 +342,4 @@ def main(sentinel1_product_zip_path):
 
 if __name__ == "__main__":
     main(sys.argv[1])
+
