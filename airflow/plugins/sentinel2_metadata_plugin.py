@@ -10,7 +10,7 @@ from pgmagick import Image, Blob
 import 	zipfile, json
 import shutil
 import xml.etree.ElementTree as ET
-from sentinel2.utils import generate_wfs_dict, generate_wcs_dict, generate_wms_dict
+from geoserver_plugin import generate_wfs_dict, generate_wcs_dict, generate_wms_dict
 
 ''' This class will create a compressed, low resolution, square shaped thumbnail for the
 original granule. the current approach is generating a new folder that will contain all the metadata files if it wasn't created. if it was created, then Sentinel2ThumbnailOperator will delete it and create a new empty one and then append the created thumbnail to it. by this way, later operators can append to this directory per product.
@@ -64,7 +64,7 @@ class Sentinel2ThumbnailOperator(BaseOperator):
                     for granule in safe_product.granules:
                         try:
                             zipf = zipfile.ZipFile(product, 'r')
-                            imgdata = zipf.read(granule.tci_path,'r')
+                            imgdata = zipf.read(granule.pvi_path,'r')
                             img = Blob(imgdata)
                             img = Image(img)
                             img.scale(self.thumb_size_x+'x'+self.thumb_size_y)
@@ -132,6 +132,7 @@ class Sentinel2MetadataOperator(BaseOperator):
 
         services= [{"wms":("GetCapabilities","GetMap")},{"wfs":("GetCapabilities","GetFeature")},{"wcs":("GetCapabilities","GetCoverage")}]
         for product in self.downloaded_products.keys():
+            log.info("Processing: {}".format(product))
             with s2reader.open(product) as s2_product:
                 coords = []
                 links=[]

@@ -8,31 +8,33 @@ from shutil import copyfile
 from zipfile import ZipFile
 from S1Reader import S1GDALReader
 from templates_renderer import TemplatesResolver
+import config as CFG
+import config.s1_grd_1sdv as S1GRD1SDV
 
 # OWS links settings for WMS
-GS_WMS_WORKSPACE="test"
-GS_WMS_LAYER="SENTINEL1_MOSAIC"
+GS_WMS_WORKSPACE=S1GRD1SDV.geoserver_workspace
+GS_WMS_LAYER=S1GRD1SDV.geoserver_layer
 GS_WMS_VERSION="1.3.0"
-GS_WMS_WIDTH="768"
-GS_WMS_HEIGHT="768"
-GS_WMS_FORMAT="image/jpeg"
+GS_WMS_WIDTH=S1GRD1SDV.geoserver_oseo_wms_width
+GS_WMS_HEIGHT=S1GRD1SDV.geoserver_oseo_wms_height
+GS_WMS_FORMAT=S1GRD1SDV.geoserver_oseo_wms_format
 
 # OWS links settings for WFS
-GS_WFS_WORKSPACE="test"
-GS_WFS_LAYER="SENTINEL1"
+GS_WFS_WORKSPACE=S1GRD1SDV.geoserver_workspace
+GS_WFS_LAYER=S1GRD1SDV.geoserver_layer
 GS_WFS_VERSION="2.0.0"
 GS_WFS_FORMAT="application/json"
 
 # OWS links settings for WCS
-GS_WCS_WORKSPACE="test"
-GS_WCS_LAYER="SENTINEL1_MOSAIC"
+GS_WCS_WORKSPACE=S1GRD1SDV.geoserver_workspace
+GS_WCS_LAYER=S1GRD1SDV.geoserver_coverage
 GS_WCS_VERSION="2.0.1"
 GS_WCS_SCALE_I='0.1'
 GS_WCS_SCALE_J='0.1'
 GS_WCS_FORMAT="geotiff"
 
 
-WORKING_DIR='/var/data/working'
+WORKING_DIR=S1GRD1SDV.process_dir
 
 try:
     from osgeo import gdal
@@ -236,8 +238,7 @@ def get_bbox_from_granule(granule_path):
     urx, ury = (lrx, uly)
     return [ [ulx,uly], [llx,lly], [lrx,lry], [urx,ury], [ulx,uly] ]
 
-def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_upload_dir):
-    working_dir = WORKING_DIR
+def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_upload_dir, working_dir=WORKING_DIR):
     s1reader = S1GDALReader(sentinel1_product_zip_path)
     files = []
 
@@ -252,11 +253,8 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
     log.info(pprint.pformat(other_metadata))
     log.info(pprint.pformat(product_abstract_metadata))
 
-    # dump product.json to file
-    path = os.path.join(working_dir, 'product.json')
-    with open(path, 'w') as f:
-        json.dump(search_params, f, indent=4)
-    files.append(path)
+    if not os.path.exists(working_dir):
+        os.makedirs(working_dir)
 
     # create description.html and dump it to file
     tr = TemplatesResolver()
@@ -301,6 +299,19 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
         json.dump(granules_dict, f, indent=4)
     files.append(path)
 
+    # Use the coordinates from the granules in the product.json as the s1reader seems to
+    # swap the footprint coordinates, see https://github.com/geosolutions-it/evo-odas/issues/192
+    granule_coords=granules_dict.get('features')[0].get('geometry').get('coordinates')
+    #print(">>>>>>>>>>>>>{}".format(granule_coords))
+    search_params['geometry']['coordinates']=granule_coords
+    #print(">>>>>>>>>>>>>{}".format(search_params.get('geometry').get('coordinates')))
+    
+    # dump product.json to file
+    path = os.path.join(working_dir, 'product.json')
+    with open(path, 'w') as f:
+        json.dump(search_params, f, indent=4)
+    files.append(path)
+
     # create owslinks.json and dump it to file
     owslinks_dict = create_owslinks_dict(s1metadata, granules_paths, bbox_str)
     path = os.path.join(working_dir, 'owslinks.json')
@@ -322,7 +333,7 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
     for file in files:
         os.remove(file)
 
-    return s1metadata
+    return path
 
 def main(sentinel1_product_zip_path):
     log = logging.getLogger(__name__)
@@ -331,3 +342,4 @@ def main(sentinel1_product_zip_path):
 
 if __name__ == "__main__":
     main(sys.argv[1])
+

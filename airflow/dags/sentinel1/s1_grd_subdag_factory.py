@@ -7,13 +7,13 @@ from sentinel1.secrets import geoserver_credentials
 log = logging.getLogger(__name__)
 
 # Dag is returned by a factory method
-def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedule_interval):
+def gdal_processing_sub_dag(parent_dag_name, child_dag_name, start_date, schedule_interval, working_dir='/var/data/working'):
 
   TARGET_SRS = 'EPSG:4326'
   TILE_SIZE = 512
-  WORKING_DIR = '/var/data/working'
+  WORKING_DIR = working_dir
   OVERWRITE = True
-
+  
   RESAMPLING_METHOD = 'average'
   MAX_OVERVIEW_LEVEL = 512
 
