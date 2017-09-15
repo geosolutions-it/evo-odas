@@ -1,8 +1,6 @@
 # Custom
 .idea
-gdal*
 airflow.db
-airflow.cfg
 unittests.cfg
 
 ## VIM
