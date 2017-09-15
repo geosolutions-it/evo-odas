@@ -36,12 +36,16 @@ dhus_search_keywords = {
 # GeoServer
 #
 geoserver_workspace = "sentinel"
+geoserver_featuretype = "product"
 geoserver_layer = "SENTINEL2"
 geoserver_coverage = "SENTINEL2"
 geoserver_oseo_collection="SENTINEL2"
 geoserver_oseo_wms_width = 512
 geoserver_oseo_wms_height = 512
-geoserver_oseo_wms_format = "JPEG2000"
+geoserver_oseo_wms_format = "image/jpeg"
+geoserver_oseo_wcs_scale_i = 0.01
+geoserver_oseo_wcs_scale_j = 0.01
+geoserver_oseo_wcs_format = "image/tiff"
 
 #
 # Product

@@ -103,10 +103,14 @@ class Sentinel2MetadataOperator(BaseOperator):
         bands_dict,
         remote_dir,
         GS_WORKSPACE,
+        GS_FEATURETYPE,
         GS_LAYER,
         GS_WMS_WIDTH,
         GS_WMS_HEIGHT,
         GS_WMS_FORMAT,
+        GS_WCS_SCALE_I,
+        GS_WCS_SCALE_J,
+        GS_WCS_FORMAT,
         coverage_id,
         get_inputs_from=None,
         *args, **kwargs):
@@ -115,9 +119,13 @@ class Sentinel2MetadataOperator(BaseOperator):
             self.bands_dict = bands_dict
             self.GS_WORKSPACE = GS_WORKSPACE
             self.GS_LAYER = GS_LAYER
+            self.GS_FEATURETYPE = GS_FEATURETYPE
             self.GS_WMS_WIDTH = GS_WMS_WIDTH
             self.GS_WMS_HEIGHT = GS_WMS_HEIGHT
             self.GS_WMS_FORMAT = GS_WMS_FORMAT
+            self.GS_WCS_SCALE_I = GS_WCS_SCALE_I
+            self.GS_WCS_SCALE_J = GS_WCS_SCALE_J
+            self.GS_WCS_FORMAT = GS_WCS_FORMAT            
             self.coverage_id = coverage_id
             self.get_inputs_from = get_inputs_from
             super(Sentinel2MetadataOperator, self).__init__(*args, **kwargs)
@@ -199,10 +207,10 @@ class Sentinel2MetadataOperator(BaseOperator):
                                   "method": "GET",
                                   "code": "GetCapabilities",
                                   "type": "application/xml",
-                                  "href": "${BASE_URL}"+"/{}/{}/ows?service={}&request=GetCapabilities&version=1.3.0&CQL_FILTER=eoParentIdentifier='{}'".format(self.GS_WORKSPACE, self.GS_LAYER, service_name,s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
+                                  "href": "${BASE_URL}"+"/{}/{}/ows?service={}&request=GetCapabilities&CQL_FILTER=eoParentIdentifier='{}'".format(self.GS_WORKSPACE, self.GS_LAYER, service_name,s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
             #Here we generate the dictionaries of GetMap, GetFeature and GetCoverage operations from util dir
-            links.append(generate_wfs_dict(s2_product, self.GS_WORKSPACE, self.GS_LAYER))
-            links.append(generate_wcs_dict(granule_coordinates, self.GS_WORKSPACE, s2_product, self.coverage_id))
+            links.append(generate_wfs_dict(s2_product, self.GS_WORKSPACE, self.GS_FEATURETYPE))
+            links.append(generate_wcs_dict(granule_coordinates, self.GS_WORKSPACE, s2_product, self.coverage_id, self.GS_WCS_FORMAT, self.GS_WCS_SCALE_I, self.GS_WCS_SCALE_J))
             links.append(generate_wms_dict(self.GS_WORKSPACE, self.GS_LAYER, granule_coordinates, self.GS_WMS_WIDTH, self.GS_WMS_HEIGHT, self.GS_WMS_FORMAT, s2_product))
             final_owslinks_dict = {"links":links}
             with open(product.strip(".zip")+'/owsLinks.json', 'w') as owslinks_outfile:
