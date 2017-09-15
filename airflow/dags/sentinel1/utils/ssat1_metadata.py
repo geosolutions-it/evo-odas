@@ -34,7 +34,7 @@ GS_WCS_SCALE_J='0.1'
 GS_WCS_FORMAT="geotiff"
 
 # Band's numbers for S1
-band_number = {"hv":"1","hh":"2", "vv":"1", "vh":"2"}
+band_number = {"hv":"hv","hh":"hh", "vv":"vv", "vh":"vh"}
 
 WORKING_DIR=S1GRD1SDV.process_dir
 
@@ -118,7 +118,7 @@ def collect_granules_metadata(granules_paths, granules_upload_dir):
         "type": "FeatureCollection",
         "features": []
     }
-
+    log.info("Collecting granules metadata. Number of granules to process: {}".format(len(granules_paths)))
     for granule in granules_paths:
         granule_name = os.path.basename(granule)
         location = os.path.join(granules_upload_dir, granule_name)
@@ -146,7 +146,7 @@ def collect_granules_metadata(granules_paths, granules_upload_dir):
         feature['geometry']['coordinates'] = coordinates
         log.info("COORDINATES: " + pprint.pformat(coordinates))
         granules_dict['features'].append(feature)
-        return (granules_dict, bbox_str)
+    return (granules_dict, bbox_str)
 
 def create_owslinks_dict(product_metadata, granules_paths, bbox_str):
     # Get BBOX from on of the granules, assuming same for all of them
@@ -260,6 +260,7 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
         os.makedirs(working_dir)
 
     # create description.html and dump it to file
+    log.info("Creating description.html")
     tr = TemplatesResolver()
     try:
         htmlAbstract = tr.generate_product_abstract(product_abstract_metadata)
@@ -274,6 +275,7 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
     files.append(path)
 
     # create metadata.xml and dump it to file
+    log.info("Creating metadata.xml")
     # xml_doc = tr.generate_sentinel1_product_metadata(du.join(search_params, other_metadata))
     try:
         metadata_xml = tr.generate_sentinel1_product_metadata(product_abstract_metadata)
@@ -288,6 +290,7 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
 
     # create thumbnail
     # TODO: create proper thumbnail from quicklook. Also remove temp file
+    log.info("Creating thumbnail")
     path = os.path.join(working_dir, "thumbnail.png")
     quicklook_path = s1reader.get_quicklook()
     log.info(pprint.pformat(quicklook_path))
@@ -295,8 +298,9 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
     files.append(path)
 
     # create granules.json
+    log.info("Creating granules.json")
     granules_dict, bbox_str = collect_granules_metadata(granules_paths, granules_upload_dir)
-    log.info(pprint.pformat(granules_dict))
+    log.info( "granules_dict: \n{}".format(pprint.pformat(granules_dict)) )
     path = os.path.join(working_dir, 'granules.json')
     with open(path, 'w') as f:
         json.dump(granules_dict, f, indent=4)
@@ -310,12 +314,14 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
     #print(">>>>>>>>>>>>>{}".format(search_params.get('geometry').get('coordinates')))
     
     # dump product.json to file
+    log.info("Creating product.json")
     path = os.path.join(working_dir, 'product.json')
     with open(path, 'w') as f:
         json.dump(search_params, f, indent=4)
     files.append(path)
 
     # create owslinks.json and dump it to file
+    log.info("Creating owslinks.json")
     owslinks_dict = create_owslinks_dict(s1metadata, granules_paths, bbox_str)
     path = os.path.join(working_dir, 'owslinks.json')
     with open(path, 'w') as f:
