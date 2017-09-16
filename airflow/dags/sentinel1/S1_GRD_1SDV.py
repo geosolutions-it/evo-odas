@@ -100,7 +100,7 @@ metadata_task = S1MetadataOperator(task_id="extract_metadata_task",
                                    dag=dag)
 
 # Rsync Archive Task for Granules
-upload_task = RSYNCOperator(task_id="upload_granules_task", 
+upload_granule_1_task = RSYNCOperator(task_id="upload_granule_1_task",
                             host = CFG.rsync_hostname, 
                             remote_usr = CFG.rsync_username,
                             ssh_key_file = CFG.rsync_ssh_key, 
@@ -109,6 +109,17 @@ upload_task = RSYNCOperator(task_id="upload_granules_task",
                             xk_pull_task_id = 'gdal_addo_1',
                             xk_pull_key = 'dstfile',
                             dag=dag)
+
+upload_granule_2_task = RSYNCOperator(task_id="upload_granule_2_task",
+                            host = CFG.rsync_hostname,
+                            remote_usr = CFG.rsync_username,
+                            ssh_key_file = CFG.rsync_ssh_key,
+                            remote_dir = S1GRD1SDV.repository_dir,
+                            xk_pull_dag_id = S1GRD1SDV.id + '.sentinel1_gdal',
+                            xk_pull_task_id = 'gdal_addo_2',
+                            xk_pull_key = 'dstfile',
+                            dag=dag)
+
 
 # Rsync Archive Task for Products
 archive_task = RSYNCOperator(task_id="archive_product_task", 
@@ -130,4 +141,4 @@ publish_task = PythonOperator(task_id="publish_product_task",
                               },
                               dag = dag)
 
-search_task >> download_task >> zip_task >> sentinel1_gdal_task >> metadata_task >> upload_task >> archive_task >> publish_task
+search_task >> download_task >> zip_task >> sentinel1_gdal_task >> metadata_task >> upload_granule_1_task >> upload_granule_2_task  >> archive_task >> publish_task
