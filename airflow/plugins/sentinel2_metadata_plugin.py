@@ -144,6 +144,9 @@ class Sentinel2MetadataOperator(BaseOperator):
             with s2reader.open(product) as s2_product:
                 coords = []
                 links=[]
+                metadata=s2_product._product_metadata
+                granule=s2_product.granules[0]
+                granule_metadata=granule._metadata
                 product_footprint = [[[m.replace(" ", ",")] for m in str(s2_product.footprint).replace(", ", ",").partition('((')[-1].rpartition('))')[0].split(",")]]
                 for item in product_footprint[0]:
                     [x_coordinate, y_coordinate] = item[0].split(",")
@@ -151,30 +154,43 @@ class Sentinel2MetadataOperator(BaseOperator):
                 final_metadata_dict = {"type": "Feature", "geometry":
                 {"type": "Polygon", "coordinates":
                 [coords]},
-                "properties": {"eop:identifier": s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0],
-                "timeStart": s2_product.product_start_time,
-                "timeEnd": s2_product.product_stop_time,
-                "originalPackageLocation": None, "thumbnailURL": None,
-                "quicklookURL": None, "eop:parentIdentifier": "SENTINEL2",
-                "eop:productionStatus": None, "eop:acquisitionType": None,
-                "eop:orbitNumber": s2_product.sensing_orbit_number, "eop:orbitDirection": s2_product.sensing_orbit_direction,
-                "eop:track": None, "eop:frame": None, "eop:swathIdentifier": None,
-                "opt:cloudCover": None,
-                "opt:snowCover": None, "eop:productQualityStatus": None,
-                "eop:productQualityDegradationStatus": None,
-                "eop:processorName": None,
-                "eop:processingCenter": None, "eop:creationDate": None,
-                "eop:modificationDate": None,
-                "eop:processingDate": None, "eop:sensorMode": None,
-                "eop:archivingCenter": None, "eop:processingMode": None,
-                "eop:availabilityTime": None,
-                "eop:acquisitionStation": None,
-                "eop:acquisitionSubtype": None,
-                "eop:startTimeFromAscendingNode": None,
-                "eop:completionTimeFromAscendingNode": None,
-                "eop:illuminationAzimuthAngle": None,
-                "eop:illuminationZenithAngle": None,
-                "eop:illuminationElevationAngle": None, "eop:resolution": None}}
+                "properties": {
+                    "eop:identifier": s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0],
+                    "timeStart": s2_product.product_start_time,
+                    "timeEnd": s2_product.product_stop_time,
+                    "originalPackageLocation": None, 
+                    "thumbnailURL": None,
+                    "quicklookURL": None,
+                    "eop:parentIdentifier": "SENTINEL2",
+                    "eop:productionStatus": None,
+                    "eop:acquisitionType": None,
+                    "eop:orbitNumber": s2_product.sensing_orbit_number, 
+                    "eop:orbitDirection": s2_product.sensing_orbit_direction,
+                    "eop:track": None,
+                    "eop:frame": None, 
+                    "eop:swathIdentifier": metadata.find('.//Product_Info/Datatake').attrib['datatakeIdentifier'],
+                    "opt:cloudCover": int(float(metadata.findtext(".//Cloud_Coverage_Assessment"))),
+                    "opt:snowCover": None,
+                    "eop:productQualityStatus": None,
+                    "eop:productQualityDegradationStatus": None,
+                    "eop:processorName": None,
+                    "eop:processingCenter": None,
+                    "eop:creationDate": None,
+                    "eop:modificationDate": None,
+                    "eop:processingDate": None,
+                    "eop:sensorMode": None,
+                    "eop:archivingCenter": granule_metadata.findtext('.//ARCHIVING_CENTRE'),
+                    "eop:processingMode": None,
+                    "eop:availabilityTime": s2_product.generation_time,
+                    "eop:acquisitionStation": None,
+                    "eop:acquisitionSubtype": None,
+                    "eop:startTimeFromAscendingNode": None,
+                    "eop:completionTimeFromAscendingNode": None,
+                    "eop:illuminationAzimuthAngle": metadata.findtext('.//Mean_Sun_Angle/AZIMUTH_ANGLE'),
+                    "eop:illuminationZenithAngle":  metadata.findtext('.//Mean_Sun_Angle/ZENITH_ANGLE'),
+                    "eop:illuminationElevationAngle": None, 
+                    "eop:resolution": None}
+                }
                 for i in self.bands_res.values():
                     features_list = []
                     granule_counter = 1
@@ -207,7 +223,12 @@ class Sentinel2MetadataOperator(BaseOperator):
                                   "method": "GET",
                                   "code": "GetCapabilities",
                                   "type": "application/xml",
-                                  "href": "${BASE_URL}"+"/{}/{}/ows?service={}&request=GetCapabilities&CQL_FILTER=eoParentIdentifier='{}'".format(self.GS_WORKSPACE, self.GS_LAYER, service_name,s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
+                                  "href": "${BASE_URL}"+"/{}/{}/ows?service={}&request=GetCapabilities&CQL_FILTER=eoParentIdentifier='{}'".format(
+                                        self.GS_WORKSPACE,
+                                        self.GS_LAYER,
+                                        service_name.upper(),
+                                        s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
+            
             #Here we generate the dictionaries of GetMap, GetFeature and GetCoverage operations from util dir
             links.append(generate_wfs_dict(s2_product, self.GS_WORKSPACE, self.GS_FEATURETYPE))
             links.append(generate_wcs_dict(granule_coordinates, self.GS_WORKSPACE, s2_product, self.coverage_id, self.GS_WCS_FORMAT, self.GS_WCS_SCALE_I, self.GS_WCS_SCALE_J))

@@ -3,6 +3,11 @@ import os
 import config
 
 #
+# DAG
+#
+dag_schedule_interval='@hourly'
+
+#
 # Collection
 #
 id = "S2_MSI_L1C"
@@ -45,13 +50,13 @@ geoserver_oseo_wms_height = 512
 geoserver_oseo_wms_format = "image/jpeg"
 geoserver_oseo_wcs_scale_i = 0.01
 geoserver_oseo_wcs_scale_j = 0.01
-geoserver_oseo_wcs_format = "image/tiff"
+geoserver_oseo_wcs_format = "image/jp2"
 
 #
 # Product
 #
 bands_res = {
-    '10':("B02","B03","B04","B08"),
+    '10':("B02","B03","B04","B08","TCI"),
     '20':("B05","B06","B07","B8A","B11","B12"),
     '60':("B01","B09","B10")
 }

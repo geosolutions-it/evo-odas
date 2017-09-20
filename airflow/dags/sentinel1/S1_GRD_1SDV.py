@@ -25,7 +25,8 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'max_threads': 1,    
+    'max_threads': 1,
+    'max_active_runs': 1,
     # 'queue': 'bash_queue',
     # 'pool': 'backfill',
     # 'priority_weight': 10,
@@ -34,6 +35,7 @@ default_args = {
 }
 
 print("#######################")
+print("Interval: ".format(S1GRD1SDV.dag_schedule_interval))
 print("ID: {}".format(S1GRD1SDV.id))
 print("DHUS:  {} @ {}, Region: {}".format(CFG.dhus_username, CFG.dhus_url, S1GRD1SDV.dhus_search_bbox) )
 print("GeoServer: {} @ {}".format(CFG.geoserver_username, CFG.geoserver_rest_url) )
@@ -47,7 +49,8 @@ print("#######################")
 # DAG definition
 dag = DAG(S1GRD1SDV.id, 
           description='DAG for searching, filtering and downloading Sentinel 1 data from DHUS server',
-          schedule_interval='@hourly',
+          schedule_interval=S1GRD1SDV.dag_schedule_interval,
+          catchup=False,
           default_args=default_args
 )
 
