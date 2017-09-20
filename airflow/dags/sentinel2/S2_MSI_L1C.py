@@ -14,7 +14,7 @@ default_args = {
     ##################################################
     # General configuration
     #
-    'start_date': datetime.today() - timedelta(days=1),
+    'start_date': datetime.now() - timedelta(hours=1),
     'owner': 'airflow',
     'depends_on_past': False,
     'provide_context': True,
@@ -23,6 +23,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'max_threads': 1,
+    'max_active_runs': 1,
     # 'queue': 'bash_queue',
     # 'pool': 'backfill',
     # 'priority_weight': 10,
@@ -31,6 +32,7 @@ default_args = {
 }
 
 print("#######################")
+print("Interval: ".format(S2MSIL1C.dag_schedule_interval))
 print("ID: {}".format(S2MSIL1C.id))
 print("DHUS:  {} @ {}, Region: {}".format(CFG.dhus_username, CFG.dhus_url, S2MSIL1C.dhus_search_bbox) )
 print("GeoServer: {} @ {}".format(CFG.geoserver_username, CFG.geoserver_rest_url) )
@@ -44,8 +46,10 @@ print("#######################")
 
 # DAG definition
 dag = DAG(S2MSIL1C.id,
-    description='DAG for searching, filtering and downloading Sentinel '+S2MSIL1C.id+' data from DHUS server',
-    default_args=default_args
+          description='DAG for searching, filtering and downloading Sentinel '+S2MSIL1C.id+' data from DHUS server',
+          schedule_interval=S2MSIL1C.dag_schedule_interval,
+          catchup=False,
+          default_args=default_args
 )
 
 # DHUS Search Task Operator
@@ -103,10 +107,14 @@ metadata_task = Sentinel2MetadataOperator(task_id = 'extract_metadata_task',
                                           remote_dir = S2MSIL1C.repository_dir,
                                           GS_WORKSPACE = S2MSIL1C.geoserver_workspace, 
                                           GS_LAYER = S2MSIL1C.geoserver_layer,
+                                          GS_FEATURETYPE = S2MSIL1C.geoserver_featuretype,
                                           coverage_id = S2MSIL1C.geoserver_coverage,
                                           GS_WMS_WIDTH = S2MSIL1C.geoserver_oseo_wms_width,
                                           GS_WMS_HEIGHT = S2MSIL1C.geoserver_oseo_wms_height,
                                           GS_WMS_FORMAT = S2MSIL1C.geoserver_oseo_wms_format,
+                                          GS_WCS_SCALE_I = S2MSIL1C.geoserver_oseo_wcs_scale_i,
+                                          GS_WCS_SCALE_J = S2MSIL1C.geoserver_oseo_wcs_scale_j,
+                                          GS_WCS_FORMAT = S2MSIL1C.geoserver_oseo_wcs_format,
                                           get_inputs_from=download_task.task_id,
                                           dag = dag)
 
@@ -122,7 +130,7 @@ archive_wldprj_task = RSYNCOperator(task_id="archive_wldprj_task",
 ## Sentinel-2 Product.zip Operator.
 # The following variables are just pointing to placeholders until we implement the real files.
 CWR = os.path.dirname(os.path.realpath(__file__))
-placeholders_list = [os.path.join(CWR,"metadata.xml"), os.path.join(CWR,"product_abstract.html")]
+placeholders_list = [os.path.join(CWR,"metadata.xml"), os.path.join(CWR,"description.html")]
 generated_files_list = ['product/product.json','product/granules.json','product/thumbnail.jpeg', 'product/owsLinks.json']
 
 product_zip_task = Sentinel2ProductZipOperator(task_id = 'create_product_zip_task',
