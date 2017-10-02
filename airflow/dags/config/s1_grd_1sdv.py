@@ -3,6 +3,12 @@ import os
 import config
 
 #
+# DAG
+#
+
+dag_schedule_interval='@hourly'
+
+#
 # Collection
 #
 id = "S1_GRD_1SDV"
