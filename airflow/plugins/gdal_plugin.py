@@ -181,12 +181,14 @@ class GDALAddoOperator(BaseOperator):
             resampling_method=self.resampling_method,
             compress_overview=self.compress_overview
         )
+        output_path= input_path
         bo = BashOperator(
             task_id='bash_operator_addo_{}'.format(
                 os.path.basename(input_path)),
             bash_command=command
         )
         bo.execute(context)
+        return output_path
 
 
 class GDALTranslateOperator(BaseOperator):

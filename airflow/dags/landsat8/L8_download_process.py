@@ -12,8 +12,10 @@ from airflow.operators import Landsat8ProductDescriptionOperator
 from airflow.operators import Landsat8ProductZipFileOperator
 from airflow.operators import Landsat8SearchOperator
 from airflow.operators import Landsat8ThumbnailOperator
+from airflow.operators import RSYNCOperator
 
 from landsat8.secrets import postgresql_credentials
+from landsat8.config import rsync_hostname, rsync_username, rsync_ssh_key_file, rsync_remote_dir
 
 # These ought to be moved to a more central place where other settings might
 # be stored
@@ -57,8 +59,8 @@ def generate_dag(area, download_dir, default_args):
     """
 
     dag = DAG(
-       "Search_{}_Landsat8".format(area.name),
-        description="DAG for searching and ingesting {} AOI in Landsat8 data "
+       "Landsat8_{}".format(area.name),
+        description="DAG for downloading, processing and ingesting {} AOI in Landsat8 data "
                     "from scene_list".format(area.name),
         default_args=default_args,
         dagrun_timeout=timedelta(hours=1),
@@ -143,9 +145,20 @@ def generate_dag(area, download_dir, default_args):
             compress_overview="PACKBITS",
             dag=dag
         )
+        upload= RSYNCOperator(task_id="upload_band{}".format(band),
+            host=rsync_hostname,
+            remote_usr=rsync_username,
+            ssh_key_file=rsync_ssh_key_file,
+            remote_dir=rsync_remote_dir,
+            xk_pull_dag_id=dag.dag_id,
+            xk_pull_task_id=addo.task_id,
+            xk_pull_key='return_value',
+            dag=dag)
+
         download_band.set_upstream(search_task)
         translate.set_upstream(download_band)
         addo.set_upstream(translate)
+        upload.set_upstream(addo)
 
 
     download_thumbnail.set_upstream(search_task)
