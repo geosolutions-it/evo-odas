@@ -4,6 +4,7 @@ from datetime import timedelta
 import os
 
 from airflow.models import DAG
+from airflow.operators import DummyOperator
 from airflow.operators import GDALAddoOperator
 from airflow.operators import GDALTranslateOperator
 from airflow.operators import Landsat8DownloadOperator
@@ -13,6 +14,7 @@ from airflow.operators import Landsat8ProductZipFileOperator
 from airflow.operators import Landsat8SearchOperator
 from airflow.operators import Landsat8ThumbnailOperator
 from airflow.operators import RSYNCOperator
+
 
 from landsat8.secrets import postgresql_credentials
 from landsat8.config import rsync_hostname, rsync_username, rsync_ssh_key_file, rsync_remote_dir
@@ -38,7 +40,7 @@ Landsat8Area = namedtuple("Landsat8Area", [
 
 
 AREAS = [
-    Landsat8Area(name="daraa", path=174, row=37, bands=[1, 2, 3]),
+    Landsat8Area(name="daraa", path=174, row=37, bands=range(1, 12)),
     # These are just some dummy areas in order to test generation of
     # multiple DAGs
     Landsat8Area(name="neighbour", path=175, row=37, bands=[1, 2, 3, 7]),
@@ -105,25 +107,13 @@ def generate_dag(area, download_dir, default_args):
         url_fragment="MTL.txt",
         dag=dag
     )
-    generate_metadata = Landsat8MTLReaderOperator(
-        task_id='generate_metadata',
-        get_inputs_from=download_metadata.task_id,
-        loc_base_dir='/efs/geoserver_data/coverages/landsat8/{}'.format(
-            area.name),
-        metadata_xml_path=os.path.join(TEMPLATES_PATH, "metadata.xml"),
+
+    join_task = DummyOperator(
+        task_id='landsat8_join',
         dag=dag
     )
 
-    product_zip_task = Landsat8ProductZipFileOperator(
-        task_id='landsat8_product_zip',
-        get_inputs_from=[
-            generate_html_description.task_id,
-            generate_metadata.task_id,
-            generate_thumbnail.task_id,
-        ],
-        output_dir=download_dir,
-        dag=dag
-    )
+    upload_task_ids=[]
     for band in area.bands:
         download_band = Landsat8DownloadOperator(
             task_id="download_band{}".format(band),
@@ -145,7 +135,10 @@ def generate_dag(area, download_dir, default_args):
             compress_overview="PACKBITS",
             dag=dag
         )
-        upload= RSYNCOperator(task_id="upload_band{}".format(band),
+        task_id = "upload_band{}".format(band)
+        upload_task_ids.append(task_id)
+        upload= RSYNCOperator(
+            task_id="upload_band{}".format(band),
             host=rsync_hostname,
             remote_usr=rsync_username,
             ssh_key_file=rsync_ssh_key_file,
@@ -159,16 +152,41 @@ def generate_dag(area, download_dir, default_args):
         translate.set_upstream(download_band)
         addo.set_upstream(translate)
         upload.set_upstream(addo)
+        join_task.set_upstream(upload)
 
+    generate_metadata = Landsat8MTLReaderOperator(
+        task_id='generate_metadata',
+        get_inputs_from={
+            "metadata_task_id":download_metadata.task_id,
+            "upload_task_ids": upload_task_ids
+        },
+        loc_base_dir='/efs/geoserver_data/coverages/landsat8/{}'.format(
+            area.name),
+        metadata_xml_path=os.path.join(TEMPLATES_PATH, "metadata.xml"),
+        dag=dag
+    )
+
+    product_zip_task = Landsat8ProductZipFileOperator(
+        task_id='landsat8_product_zip',
+        get_inputs_from=[
+            generate_html_description.task_id,
+            generate_metadata.task_id,
+            generate_thumbnail.task_id
+        ],
+        output_dir=download_dir,
+        dag=dag
+    )
 
     download_thumbnail.set_upstream(search_task)
     download_metadata.set_upstream(search_task)
     generate_metadata.set_upstream(download_metadata)
+    generate_metadata.set_upstream(join_task)
     generate_thumbnail.set_upstream(download_thumbnail)
     generate_html_description.set_upstream(search_task)
     product_zip_task.set_upstream(generate_html_description)
     product_zip_task.set_upstream(generate_metadata)
     product_zip_task.set_upstream(generate_thumbnail)
+
     return dag
 
 
