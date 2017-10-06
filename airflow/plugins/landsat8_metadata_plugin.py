@@ -14,6 +14,20 @@ from pgmagick import Image
 log = logging.getLogger(__name__)
 pp = pprint.PrettyPrinter(indent=2)
 
+BAND_NAMES = {
+    "B1": "B1",
+    "B2": "B2",
+    "B3": "B3",
+    "B4": "B4",
+    "B5": "B5",
+    "B6": "B6",
+    "B7": "B7",
+    "B8": "B8",
+    "B9": "B9",
+    "B10": "B10",
+    "B11": "B11",
+    "B12": "B12",
+}
 
 BoundingBox = namedtuple("BoundingBox", [
     "ullon",
@@ -132,27 +146,40 @@ def prepare_metadata(metadata, bounding_box):
     }
 
 
-def prepare_granules(bounding_box, location):
-    return {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [[
+def prepare_granules(bounding_box, granule_paths):
+    coordinates=[[
                         [bounding_box.ullat, bounding_box.ullon],
                         [bounding_box.urlat, bounding_box.urlon],
                         [bounding_box.lllat, bounding_box.lllon],
                         [bounding_box.lrlat, bounding_box.lrlon],
                         [bounding_box.ullat, bounding_box.ullon],
-                    ]],
-                },
-                "properties": {"location": location},
-                "id": "GRANULE.1"
-            }
-        ]
+    ]]
+
+    granules_dict = {
+        "type": "FeatureCollection",
+        "features": []
     }
+
+    for i in range(len(granule_paths)):
+        path = granule_paths[i]
+        name_no_ext = os.path.splitext(os.path.basename(path))[0]
+        band_name = name_no_ext.split('_')[-1:][0]
+        log.info("Band Name: {} type: {}".format(band_name, type(band_name)))
+        feature={
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": coordinates,
+            },
+            "properties": {
+                "band": BAND_NAMES[band_name],
+                "location": granule_paths[i]
+            },
+            "id": "GRANULE.{}".format(i+1)
+        }
+        granules_dict["features"].append(feature)
+
+    return granules_dict
 
 
 class Landsat8MTLReaderOperator(BaseOperator):
@@ -174,14 +201,21 @@ class Landsat8MTLReaderOperator(BaseOperator):
         self.loc_base_dir = loc_base_dir
 
     def execute(self, context):
-        mtl_path = context["task_instance"].xcom_pull(self.get_inputs_from)
+        mtl_path = context["task_instance"].xcom_pull(self.get_inputs_from["metadata_task_id"])
+        upload_granules_task_ids = self.get_inputs_from["upload_task_ids"]
+        granule_paths=[]
+        for tid in upload_granules_task_ids:
+            granule_path = context["task_instance"].xcom_pull(tid)
+            granule_paths.append(granule_path)
+
         with open(mtl_path) as mtl_fh:
             parsed_metadata = parse_mtl_data(mtl_fh)
         bounding_box = get_bounding_box(parsed_metadata["PRODUCT_METADATA"])
         prepared_metadata = prepare_metadata(parsed_metadata, bounding_box)
         product_directory, mtl_name = os.path.split(mtl_path)
         location = os.path.join(self.loc_base_dir, product_directory, mtl_name)
-        granules_dict = prepare_granules(bounding_box, location)
+        granules_dict = prepare_granules(bounding_box, granule_paths)
+        log.info("Granules Dict: {}".format(pprint.pformat(granules_dict)))
         json_path = os.path.join(product_directory, "product.json")
         granules_path = os.path.join(product_directory, "granules.json")
         xml_template_path = os.path.join(product_directory, "metadata.xml")

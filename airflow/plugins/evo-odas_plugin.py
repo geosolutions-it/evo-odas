@@ -129,6 +129,7 @@ class RSYNCOperator(BaseOperator):
         bash_command = 'rsync -avHPze "ssh -i ' + self.ssh_key_file + ' -o StrictHostKeyChecking=no" ' + files_str + ' ' + self.remote_usr + '@' + self.host + ':' + self.remote_dir
         bo = BashOperator(task_id='bash_operator_rsync_', bash_command=bash_command)
         bo.execute(context)
+        return files_str
 
 class S1MetadataOperator(BaseOperator):
     @apply_defaults
