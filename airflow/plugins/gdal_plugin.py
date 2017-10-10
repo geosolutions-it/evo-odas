@@ -1,6 +1,8 @@
 from itertools import count
 import logging
 import os
+import pprint
+from subprocess import check_output
 
 from airflow.operators import BashOperator
 from airflow.operators import BaseOperator
@@ -235,13 +237,35 @@ class GDALTranslateOperator(BaseOperator):
         b_o.execute(context)
         return output_path
 
+class GDALInfoOperator(BaseOperator):
+
+    @apply_defaults
+    def __init__(self, get_inputs_from, *args, **kwargs):
+        super(GDALInfoOperator, self).__init__(*args, **kwargs)
+        self.get_inputs_from = get_inputs_from
+
+    def execute(self, context):
+        input_paths = []
+        for get_input in self.get_inputs_from:
+            input_paths.append(context["task_instance"].xcom_pull(get_input))
+        gdalinfo_outputs = {}
+        for input_path in input_paths:
+            command = ["gdalinfo"]
+            log.info("Running GDALInfo on {}...".format(input_path))
+            command.append(input_path)
+            gdalinfo_output = check_output(command)
+            log.info("{}".format(gdalinfo_output))
+            gdalinfo_outputs[input_path] = gdalinfo_output
+        return gdalinfo_outputs
+
 
 class GDALPlugin(AirflowPlugin):
     name = "GDAL_plugin"
     operators = [
         GDALWarpOperator,
         GDALAddoOperator,
-        GDALTranslateOperator
+        GDALTranslateOperator,
+        GDALInfoOperator
     ]
 
 

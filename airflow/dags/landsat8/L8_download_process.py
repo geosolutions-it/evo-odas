@@ -7,6 +7,7 @@ from airflow.models import DAG
 from airflow.operators import DummyOperator
 from airflow.operators import GDALAddoOperator
 from airflow.operators import GDALTranslateOperator
+from airflow.operators import GDALInfoOperator
 from airflow.operators import Landsat8DownloadOperator
 from airflow.operators import Landsat8MTLReaderOperator
 from airflow.operators import Landsat8ProductDescriptionOperator
@@ -114,6 +115,7 @@ def generate_dag(area, download_dir, default_args):
     )
 
     upload_task_ids=[]
+    addo_task_ids = []
     for band in area.bands:
         download_band = Landsat8DownloadOperator(
             task_id="download_band{}".format(band),
@@ -127,6 +129,8 @@ def generate_dag(area, download_dir, default_args):
             get_inputs_from=download_band.task_id,
             dag=dag
         )
+        task_id = "add_overviews_band{}".format(band)
+        addo_task_ids.append(task_id)
         addo = GDALAddoOperator(
             task_id="add_overviews_band{}".format(band),
             get_inputs_from=translate.task_id,
@@ -137,7 +141,7 @@ def generate_dag(area, download_dir, default_args):
         )
         task_id = "upload_band{}".format(band)
         upload_task_ids.append(task_id)
-        upload= RSYNCOperator(
+        upload = RSYNCOperator(
             task_id="upload_band{}".format(band),
             host=rsync_hostname,
             remote_usr=rsync_username,
@@ -153,6 +157,13 @@ def generate_dag(area, download_dir, default_args):
         addo.set_upstream(translate)
         upload.set_upstream(addo)
         join_task.set_upstream(upload)
+
+
+    gdalinfo_task = GDALInfoOperator(
+        task_id='landsat8_gdalinfo',
+        get_inputs_from=addo_task_ids,
+        dag=dag
+    )
 
     generate_metadata = Landsat8MTLReaderOperator(
         task_id='generate_metadata',
@@ -177,10 +188,12 @@ def generate_dag(area, download_dir, default_args):
         dag=dag
     )
 
+
     download_thumbnail.set_upstream(search_task)
     download_metadata.set_upstream(search_task)
     generate_metadata.set_upstream(download_metadata)
     generate_metadata.set_upstream(join_task)
+    gdalinfo_task.set_upstream(join_task)
     generate_thumbnail.set_upstream(download_thumbnail)
     generate_html_description.set_upstream(search_task)
     product_zip_task.set_upstream(generate_html_description)
