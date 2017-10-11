@@ -313,10 +313,11 @@ class Landsat8ProductZipFileOperator(BaseOperator):
                 paths_to_zip.extend(inputs)
         log.info("paths_to_zip: {}".format(paths_to_zip))
         output_path = os.path.join(self.output_dir, "product.zip")
+        output_paths = [ output_path ]
         with zipfile.ZipFile(output_path, "w") as zip_handler:
             for path in paths_to_zip:
                 zip_handler.write(path, os.path.basename(path))
-        return output_path
+        return output_paths
 
 
 class Landsat8GranuleJsonFileOperator(BaseOperator):

@@ -5,6 +5,7 @@ import os
 
 from airflow.models import DAG
 from airflow.operators import DummyOperator
+from airflow.operators import PythonOperator
 from airflow.operators import GDALAddoOperator
 from airflow.operators import GDALTranslateOperator
 from airflow.operators import GDALInfoOperator
@@ -15,11 +16,12 @@ from airflow.operators import Landsat8ProductZipFileOperator
 from airflow.operators import Landsat8SearchOperator
 from airflow.operators import Landsat8ThumbnailOperator
 from airflow.operators import RSYNCOperator
+from geoserver_plugin import publish_product
 
 
-from landsat8.secrets import postgresql_credentials
+from landsat8.secrets import postgresql_credentials, geoserver_credentials
 from landsat8.config import rsync_hostname, rsync_username, rsync_ssh_key_file, rsync_remote_dir
-
+from landsat8.config import geoserver_rest_url, geoserver_oseo_collection
 # These ought to be moved to a more central place where other settings might
 # be stored
 PROJECT_ROOT = os.path.dirname(
@@ -189,6 +191,17 @@ def generate_dag(area, download_dir, default_args):
         dag=dag
     )
 
+    # curl -vvv -u evoadmin:\! -XPOST -H "Content-type: application/zip" --data-binary @/var/data/Sentinel-2/S2_MSI_L1C/download/S2A_MSIL1C_20170909T093031_N0205_R136_T36VUQ_20170909T093032/product.zip "http://ows-oda.eoc.dlr.de/geoserver/rest/oseo/collections/SENTINEL2/products"
+    publish_task = PythonOperator(task_id="publish_product_task",
+                                  python_callable=publish_product,
+                                  op_kwargs={
+                                      'geoserver_username': geoserver_credentials['username'],
+                                      'geoserver_password': geoserver_credentials['password'],
+                                      'geoserver_rest_endpoint': '{}/oseo/collections/{}/products'.format(
+                                          geoserver_rest_url, geoserver_oseo_collection),
+                                      'get_inputs_from': product_zip_task.task_id,
+                                  },
+                                  dag=dag)
 
     download_thumbnail.set_upstream(search_task)
     download_metadata.set_upstream(search_task)
@@ -200,6 +213,7 @@ def generate_dag(area, download_dir, default_args):
     product_zip_task.set_upstream(generate_html_description)
     product_zip_task.set_upstream(generate_metadata)
     product_zip_task.set_upstream(generate_thumbnail)
+    publish_task.set_upstream(product_zip_task)
 
     return dag
 
