@@ -89,6 +89,11 @@ def get_bounding_box(product_metadata):
 
 
 def prepare_metadata(metadata, bounding_box, crs):
+
+    date_acqired = metadata["PRODUCT_METADATA"]["DATE_ACQUIRED"]
+    scene_center_time = metadata["PRODUCT_METADATA"]["SCENE_CENTER_TIME"]
+    time_start_end = date_acqired + 'T' + scene_center_time.split('.')[0] + 'Z'
+
     return {
         "type": "Feature",
         "geometry": {
@@ -104,8 +109,8 @@ def prepare_metadata(metadata, bounding_box, crs):
         "properties": {
             "eop:identifier": metadata[
                 "METADATA_FILE_INFO"]["LANDSAT_PRODUCT_ID"],
-            "timeStart": metadata["PRODUCT_METADATA"]["SCENE_CENTER_TIME"],
-            "timeEnd": metadata["PRODUCT_METADATA"]["SCENE_CENTER_TIME"],
+            "timeStart": time_start_end,
+            "timeEnd": time_start_end,
             "originalPackageLocation": None,
             "thumbnailURL": None,
             "quicklookURL": None,
