@@ -169,7 +169,8 @@ def generate_dag(area, download_dir, default_args):
         task_id='generate_metadata',
         get_inputs_from={
             "metadata_task_id":download_metadata.task_id,
-            "upload_task_ids": upload_task_ids
+            "upload_task_ids": upload_task_ids,
+            "gdalinfo_task_id": gdalinfo_task.task_id
         },
         loc_base_dir='/efs/geoserver_data/coverages/landsat8/{}'.format(
             area.name),
@@ -191,9 +192,9 @@ def generate_dag(area, download_dir, default_args):
 
     download_thumbnail.set_upstream(search_task)
     download_metadata.set_upstream(search_task)
-    generate_metadata.set_upstream(download_metadata)
-    generate_metadata.set_upstream(join_task)
     gdalinfo_task.set_upstream(join_task)
+    generate_metadata.set_upstream(download_metadata)
+    generate_metadata.set_upstream(gdalinfo_task)
     generate_thumbnail.set_upstream(download_thumbnail)
     generate_html_description.set_upstream(search_task)
     product_zip_task.set_upstream(generate_html_description)
