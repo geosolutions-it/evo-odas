@@ -2,6 +2,7 @@ from collections import namedtuple
 import json
 import logging
 import os
+import re
 import pprint
 import shutil
 import zipfile
@@ -10,6 +11,7 @@ from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 from pgmagick import Image
+from osgeo import osr
 
 log = logging.getLogger(__name__)
 pp = pprint.PrettyPrinter(indent=2)
@@ -86,7 +88,7 @@ def get_bounding_box(product_metadata):
 
 
 
-def prepare_metadata(metadata, bounding_box):
+def prepare_metadata(metadata, bounding_box, crs):
     return {
         "type": "Feature",
         "geometry": {
@@ -107,6 +109,7 @@ def prepare_metadata(metadata, bounding_box):
             "originalPackageLocation": None,
             "thumbnailURL": None,
             "quicklookURL": None,
+            "crs": crs,
             "eop:parentIdentifier": "LANDSAT8",
             "eop:productionStatus": None,
             "eop:acquisitionType": None,
@@ -201,17 +204,33 @@ class Landsat8MTLReaderOperator(BaseOperator):
         self.loc_base_dir = loc_base_dir
 
     def execute(self, context):
+        # fetch MTL file path from XCom
         mtl_path = context["task_instance"].xcom_pull(self.get_inputs_from["metadata_task_id"])
+        # Uploaded granules paths from XCom
         upload_granules_task_ids = self.get_inputs_from["upload_task_ids"]
         granule_paths=[]
         for tid in upload_granules_task_ids:
             granule_path = context["task_instance"].xcom_pull(tid)
             granule_paths.append(granule_path)
+        # Get GDALInfo output from XCom
+        gdalinfo_task_id = self.get_inputs_from["gdalinfo_task_id"]
+        gdalinfo_dict = context["task_instance"].xcom_pull(gdalinfo_task_id)
+        # Get GDALInfo output of one of the granules, CRS will be the same for all granules
+        k = gdalinfo_dict.keys()[0]
+        gdalinfo_out=gdalinfo_dict[k]
+        # Extract projection WKT and get EPSG code
+        match = re.findall(r'^(PROJCS.*]])', gdalinfo_out, re.MULTILINE | re.DOTALL)
+        wkt_def = match[0]
+        assert wkt_def is not None
+        assert isinstance(wkt_def, basestring) or isinstance(wkt_def, str)
+        sref = osr.SpatialReference()
+        sref.ImportFromWkt(wkt_def)
+        crs = sref.GetAttrValue("AUTHORITY",1)
 
         with open(mtl_path) as mtl_fh:
             parsed_metadata = parse_mtl_data(mtl_fh)
         bounding_box = get_bounding_box(parsed_metadata["PRODUCT_METADATA"])
-        prepared_metadata = prepare_metadata(parsed_metadata, bounding_box)
+        prepared_metadata = prepare_metadata(parsed_metadata, bounding_box, crs)
         product_directory, mtl_name = os.path.split(mtl_path)
         location = os.path.join(self.loc_base_dir, product_directory, mtl_name)
         granules_dict = prepare_granules(bounding_box, granule_paths)
