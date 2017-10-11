@@ -122,6 +122,7 @@ def publish_product(geoserver_username, geoserver_password, geoserver_rest_endpo
         published_ids=list()
         for zip_file in zip_files:
             # POST product.zip
+            log.info("Publishing: {}".format(zip_file))
             d = open(zip_file, 'rb').read()
             a = requests.auth.HTTPBasicAuth(geoserver_username, geoserver_password)
             h = {'Content-type': 'application/zip'}
