@@ -215,8 +215,7 @@ class Landsat8MTLReaderOperator(BaseOperator):
         upload_granules_task_ids = self.get_inputs_from["upload_task_ids"]
         granule_paths=[]
         for tid in upload_granules_task_ids:
-            granule_path = context["task_instance"].xcom_pull(tid)
-            granule_paths.append(granule_path)
+            granule_paths += context["task_instance"].xcom_pull(tid)
         # Get GDALInfo output from XCom
         gdalinfo_task_id = self.get_inputs_from["gdalinfo_task_id"]
         gdalinfo_dict = context["task_instance"].xcom_pull(gdalinfo_task_id)
@@ -235,11 +234,12 @@ class Landsat8MTLReaderOperator(BaseOperator):
         with open(mtl_path) as mtl_fh:
             parsed_metadata = parse_mtl_data(mtl_fh)
         bounding_box = get_bounding_box(parsed_metadata["PRODUCT_METADATA"])
+        log.debug("BoundingBox: {}".format(pprint.pformat(bounding_box)))
         prepared_metadata = prepare_metadata(parsed_metadata, bounding_box, crs)
         product_directory, mtl_name = os.path.split(mtl_path)
         location = os.path.join(self.loc_base_dir, product_directory, mtl_name)
         granules_dict = prepare_granules(bounding_box, granule_paths)
-        log.info("Granules Dict: {}".format(pprint.pformat(granules_dict)))
+        log.debug("Granules Dict: {}".format(pprint.pformat(granules_dict)))
         json_path = os.path.join(product_directory, "product.json")
         granules_path = os.path.join(product_directory, "granules.json")
         xml_template_path = os.path.join(product_directory, "metadata.xml")
