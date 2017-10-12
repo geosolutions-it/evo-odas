@@ -114,7 +114,7 @@ def prepare_metadata(metadata, bounding_box, crs):
             "originalPackageLocation": None,
             "thumbnailURL": None,
             "quicklookURL": None,
-            "crs": crs,
+            "crs": "EPSG:" + crs,
             "eop:parentIdentifier": "LANDSAT8",
             "eop:productionStatus": None,
             "eop:acquisitionType": None,
