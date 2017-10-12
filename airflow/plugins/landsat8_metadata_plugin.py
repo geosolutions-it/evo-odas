@@ -100,9 +100,9 @@ def prepare_metadata(metadata, bounding_box, crs):
             "type": "Polygon",
             "coordinates": [[
                 [bounding_box.ullat, bounding_box.ullon],
-                [bounding_box.urlat, bounding_box.urlon],
                 [bounding_box.lllat, bounding_box.lllon],
                 [bounding_box.lrlat, bounding_box.lrlon],
+                [bounding_box.urlat, bounding_box.urlon],
                 [bounding_box.ullat, bounding_box.ullon],
             ]],
         },
@@ -156,11 +156,11 @@ def prepare_metadata(metadata, bounding_box, crs):
 
 def prepare_granules(bounding_box, granule_paths):
     coordinates=[[
-                        [bounding_box.ullat, bounding_box.ullon],
-                        [bounding_box.urlat, bounding_box.urlon],
-                        [bounding_box.lllat, bounding_box.lllon],
-                        [bounding_box.lrlat, bounding_box.lrlon],
-                        [bounding_box.ullat, bounding_box.ullon],
+                        [bounding_box.ullon, bounding_box.ullat],
+                        [bounding_box.lllon, bounding_box.lllat],
+                        [bounding_box.lrlon, bounding_box.lrlat],
+                        [bounding_box.urlon, bounding_box.urlat],
+                        [bounding_box.ullon, bounding_box.ullat],
     ]]
 
     granules_dict = {
