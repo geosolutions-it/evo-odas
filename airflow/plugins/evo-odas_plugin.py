@@ -71,20 +71,12 @@ class RSYNCOperator(BaseOperator):
                  remote_usr,
                  ssh_key_file,
                  remote_dir,
-                 files_to_upload=None,
                  get_inputs_from=None,
-                 xk_pull_dag_id=None,
-                 xk_pull_task_id=None,
-                 xk_pull_key=None,
                  *args, **kwargs):
         self.host = host
         self.remote_usr = remote_usr
         self.ssh_key_file = ssh_key_file
         self.remote_dir = remote_dir
-        self.files_to_upload = files_to_upload
-        self.xk_pull_dag_id = xk_pull_dag_id
-        self.xk_pull_task_id = xk_pull_task_id
-        self.xk_pull_key = xk_pull_key
         self.get_inputs_from = get_inputs_from
 
         log.info('--------------------RSYNCOperator ------------')
@@ -101,34 +93,19 @@ class RSYNCOperator(BaseOperator):
         
         # check default XCOM key in task_id 'get_inputs_from'
         files_str = ""
-        if self.get_inputs_from != None:
-            files = context['task_instance'].xcom_pull(task_ids=self.get_inputs_from, key=XCOM_RETURN_KEY)
+        files = context['task_instance'].xcom_pull(task_ids=self.get_inputs_from, key=XCOM_RETURN_KEY)
 
-            # stop processing if there are no products
-            if files is None:
-                log.info("Nothing to process.")
-                return
+        # stop processing if there are no products
+        if files is None:
+            log.info("Nothing to process.")
+            return
 
-            if isinstance(files, six.string_types):
-                files_str = files
-            else:
-                for f in files:
-                    files_str += " " + f
-                log.info("Retrieving input from task_id '{}'' and key '{}'".format(self.get_inputs_from, XCOM_RETURN_KEY))
+        if isinstance(files, six.string_types):
+            files_str = files
         else:
-            # init XCom parameters
-            if self.xk_pull_dag_id is None:
-                self.xk_pull_dag_id = context['dag'].dag_id
-
-            # check input file path passed otherwise look for it in XCom
-            if self.files_to_upload is None:
-                log.info('xk_pull_dag_id: %s', self.xk_pull_dag_id)
-                log.info('xk_pull_task_id: %s', self.xk_pull_task_id)
-                log.info('xk_pull_key: %s', self.xk_pull_key)
-                files_str = context['task_instance'].xcom_pull(task_ids=self.xk_pull_task_id, key=self.xk_pull_key, dag_id=self.xk_pull_dag_id)
-            else:
-                for f in self.files_to_upload:
-                    files_str += " " + f
+            for f in files:
+                files_str += " " + f
+            log.info("Retrieving input from task_id '{}'' and key '{}'".format(self.get_inputs_from, XCOM_RETURN_KEY))
 
         bash_command = 'rsync -avHPze "ssh -i ' + self.ssh_key_file + ' -o StrictHostKeyChecking=no" ' + files_str + ' ' + self.remote_usr + '@' + self.host + ':' + self.remote_dir
         bo = BashOperator(task_id='bash_operator_rsync_', bash_command=bash_command)
@@ -170,10 +147,12 @@ class S1MetadataOperator(BaseOperator):
         download_task_id = self.get_inputs_from['download_task_id']
         addo_task_ids = self.get_inputs_from['addo_task_ids']
         upload_task_ids = self.get_inputs_from['upload_task_ids']
+        archive_product_task_id = self.get_inputs_from['archive_product_task_id']
 
         downloaded = context['task_instance'].xcom_pull(task_ids=download_task_id, key=XCOM_RETURN_KEY)
         local_granules_paths = context['task_instance'].xcom_pull(task_ids=addo_task_ids, key=XCOM_RETURN_KEY)
         uploaded_granules_paths = context['task_instance'].xcom_pull(task_ids=upload_task_ids, key=XCOM_RETURN_KEY)
+        original_package_path = context['task_instance'].xcom_pull(task_ids=archive_product_task_id, key=XCOM_RETURN_KEY)
 
         safe_package_path = downloaded.keys()[0]
         product_id = downloaded[safe_package_path].get('title')
@@ -189,6 +168,8 @@ class S1MetadataOperator(BaseOperator):
                 'sentinel1_product_zip_path': safe_package_path,
                 'granules_paths': local_granules_paths,
                 'granules_upload_dir':self.granules_upload_dir,
+                'uploaded_granules_paths': uploaded_granules_paths,
+                'original_package_path': original_package_path,
                 'working_dir': working_dir
             }
         )
