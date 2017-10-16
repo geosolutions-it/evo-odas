@@ -17,11 +17,14 @@ from airflow.operators import Landsat8SearchOperator
 from airflow.operators import Landsat8ThumbnailOperator
 from airflow.operators import RSYNCOperator
 from geoserver_plugin import publish_product
-
+from landsat8_metadata_plugin import create_original_package
 
 from landsat8.secrets import postgresql_credentials, geoserver_credentials
 from landsat8.config import rsync_hostname, rsync_username, rsync_ssh_key_file, rsync_remote_dir
 from landsat8.config import geoserver_rest_url, geoserver_oseo_collection
+
+ORIGINAL_PACKAGE_OUT_DIR="/tmp"
+
 # These ought to be moved to a more central place where other settings might
 # be stored
 PROJECT_ROOT = os.path.dirname(
@@ -116,8 +119,11 @@ def generate_dag(area, download_dir, default_args):
         dag=dag
     )
 
-    upload_task_ids=[]
-    addo_task_ids = []
+    download_tasks = []
+    translate_tasks = []
+    addo_tasks = []
+    upload_tasks = []
+
     for band in area.bands:
         download_band = Landsat8DownloadOperator(
             task_id="download_band{}".format(band),
@@ -126,13 +132,15 @@ def generate_dag(area, download_dir, default_args):
             url_fragment="B{}.TIF".format(band),
             dag=dag
         )
+        download_tasks.append(download_band)
+
         translate = GDALTranslateOperator(
             task_id="translate_band{}".format(band),
             get_inputs_from=download_band.task_id,
             dag=dag
         )
-        task_id = "add_overviews_band{}".format(band)
-        addo_task_ids.append(task_id)
+        translate_tasks.append(translate)
+
         addo = GDALAddoOperator(
             task_id="add_overviews_band{}".format(band),
             get_inputs_from=translate.task_id,
@@ -141,18 +149,18 @@ def generate_dag(area, download_dir, default_args):
             compress_overview="PACKBITS",
             dag=dag
         )
-        task_id = "upload_band{}".format(band)
-        upload_task_ids.append(task_id)
+        addo_tasks.append(addo)
+
+
         upload = RSYNCOperator(
             task_id="upload_band{}".format(band),
             host=rsync_hostname,
             remote_usr=rsync_username,
             ssh_key_file=rsync_ssh_key_file,
             remote_dir=rsync_remote_dir,
-            xk_pull_dag_id=dag.dag_id,
-            xk_pull_task_id=addo.task_id,
-            xk_pull_key='return_value',
+            get_inputs_from=addo.task_id,
             dag=dag)
+        upload_tasks.append(upload)
 
         download_band.set_upstream(search_task)
         translate.set_upstream(download_band)
@@ -160,19 +168,44 @@ def generate_dag(area, download_dir, default_args):
         upload.set_upstream(addo)
         join_task.set_upstream(upload)
 
+    download_task_ids = ( task.task_id for task in download_tasks )
+    create_original_package_task = PythonOperator(task_id="create_original_package",
+                                  python_callable=create_original_package,
+                                  op_kwargs={
+                                      'get_inputs_from': {
+                                          "search_task_id"  : search_task.task_id,
+                                          "download_task_ids" : download_task_ids,
+                                      }
+                                      ,
+                                      'out_dir' : ORIGINAL_PACKAGE_OUT_DIR
+                                  },
+                                  dag=dag)
 
+    upload_original_package_task = RSYNCOperator(
+        task_id="upload_original_package",
+        host=rsync_hostname,
+        remote_usr=rsync_username,
+        ssh_key_file=rsync_ssh_key_file,
+        remote_dir=rsync_remote_dir,
+        get_inputs_from=create_original_package_task.task_id,
+        dag=dag)
+
+    addo_task_ids = ( task.task_id for task in addo_tasks )
     gdalinfo_task = GDALInfoOperator(
         task_id='landsat8_gdalinfo',
         get_inputs_from=addo_task_ids,
         dag=dag
     )
 
+    upload_task_ids = (task.task_id for task in upload_tasks)
     generate_metadata = Landsat8MTLReaderOperator(
         task_id='generate_metadata',
         get_inputs_from={
-            "metadata_task_id":download_metadata.task_id,
-            "upload_task_ids": upload_task_ids,
-            "gdalinfo_task_id": gdalinfo_task.task_id
+            "search_task_id"  : search_task.task_id,
+            "metadata_task_id": download_metadata.task_id,
+            "upload_task_ids" : upload_task_ids,
+            "gdalinfo_task_id": gdalinfo_task.task_id,
+            "upload_original_package_task_id": upload_original_package_task.task_id,
         },
         loc_base_dir='/efs/geoserver_data/coverages/landsat8/{}'.format(
             area.name),
@@ -205,14 +238,19 @@ def generate_dag(area, download_dir, default_args):
 
     download_thumbnail.set_upstream(search_task)
     download_metadata.set_upstream(search_task)
+    for tid in download_tasks:
+        create_original_package_task.set_upstream(tid)
+    upload_original_package_task.set_upstream(create_original_package_task)
     gdalinfo_task.set_upstream(join_task)
     generate_metadata.set_upstream(download_metadata)
     generate_metadata.set_upstream(gdalinfo_task)
+    generate_metadata.set_upstream(upload_original_package_task)
     generate_thumbnail.set_upstream(download_thumbnail)
     generate_html_description.set_upstream(search_task)
     product_zip_task.set_upstream(generate_html_description)
     product_zip_task.set_upstream(generate_metadata)
     product_zip_task.set_upstream(generate_thumbnail)
+    publish_task.set_upstream(upload_original_package_task)
     publish_task.set_upstream(product_zip_task)
 
     return dag
