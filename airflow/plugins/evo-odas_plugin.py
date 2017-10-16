@@ -1,6 +1,7 @@
 import logging
 import pprint
-import os 
+import os
+import six
 import fnmatch
 from airflow.operators import BashOperator
 from airflow.operators import BaseOperator
@@ -101,16 +102,19 @@ class RSYNCOperator(BaseOperator):
         # check default XCOM key in task_id 'get_inputs_from'
         files_str = ""
         if self.get_inputs_from != None:
-            files_dict = context['task_instance'].xcom_pull(task_ids=self.get_inputs_from, key=XCOM_RETURN_KEY)
+            files = context['task_instance'].xcom_pull(task_ids=self.get_inputs_from, key=XCOM_RETURN_KEY)
 
             # stop processing if there are no products
-            if files_dict is None:
+            if files is None:
                 log.info("Nothing to process.")
                 return
 
-            for f in files_dict:
-                files_str += " " + f
-            log.info("Retrieving input from task_id '{}'' and key '{}'".format(self.get_inputs_from, XCOM_RETURN_KEY))
+            if isinstance(files, six.string_types):
+                files_str = files
+            else:
+                for f in files:
+                    files_str += " " + f
+                log.info("Retrieving input from task_id '{}'' and key '{}'".format(self.get_inputs_from, XCOM_RETURN_KEY))
         else:
             # init XCom parameters
             if self.xk_pull_dag_id is None:

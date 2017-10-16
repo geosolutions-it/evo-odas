@@ -10,6 +10,7 @@ import zipfile
 from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
+from airflow.models import XCOM_RETURN_KEY
 from pgmagick import Image
 from osgeo import osr
 
@@ -41,6 +42,46 @@ BoundingBox = namedtuple("BoundingBox", [
     "lrlon",
     "lrlat"
 ])
+
+
+def create_original_package(get_inputs_from=None, files_list=None, out_dir=None, *args, **kwargs):
+    # Pull Zip path from XCom
+    log.info("create_original_package")
+    log.info("""
+        get_inputs_from: {}
+        files_list: {}
+        out_dir: {}
+        """.format(
+        get_inputs_from,
+        files_list,
+        out_dir
+        )
+    )
+
+    task_instance = kwargs['ti']
+    if get_inputs_from != None:
+        log.info("Getting inputs from: " + pprint.pformat(get_inputs_from))
+        # Product ID from Search Task
+        product_id = task_instance.xcom_pull(task_ids=get_inputs_from['search_task_id'], key=XCOM_RETURN_KEY)
+        # Band TIFFs from download task
+        files_list = task_instance.xcom_pull(task_ids=get_inputs_from['download_task_ids'], key=XCOM_RETURN_KEY)
+
+    assert files_list is not None
+    log.info("File List: {}".format(files_list))
+
+    # Get Product ID from band file name
+    '''
+    filename=os.path.basename(files_list[0])
+    m = re.match(r'(.*)_B.+\..+', filename)
+    product_id = m.groups()[0]
+    '''
+
+    zipfile_path = os.path.join(out_dir, product_id[0] + '.zip')
+    with zipfile.ZipFile(zipfile_path, 'w') as myzip:
+        for file in files_list:
+            myzip.write(file, os.path.basename(file))
+
+    return zipfile_path
 
 
 def parse_mtl_data(buffer):
@@ -88,7 +129,7 @@ def get_bounding_box(product_metadata):
 
 
 
-def prepare_metadata(metadata, bounding_box, crs):
+def prepare_metadata(metadata, bounding_box, crs, original_package_location):
 
     date_acqired = metadata["PRODUCT_METADATA"]["DATE_ACQUIRED"]
     scene_center_time = metadata["PRODUCT_METADATA"]["SCENE_CENTER_TIME"]
@@ -111,7 +152,7 @@ def prepare_metadata(metadata, bounding_box, crs):
                 "METADATA_FILE_INFO"]["LANDSAT_PRODUCT_ID"],
             "timeStart": time_start_end,
             "timeEnd": time_start_end,
-            "originalPackageLocation": None,
+            "originalPackageLocation": original_package_location,
             "thumbnailURL": None,
             "quicklookURL": None,
             "crs": "EPSG:" + crs,
@@ -216,6 +257,8 @@ class Landsat8MTLReaderOperator(BaseOperator):
         granule_paths=[]
         for tid in upload_granules_task_ids:
             granule_paths += context["task_instance"].xcom_pull(tid)
+        original_package_location = context["task_instance"].xcom_pull(self.get_inputs_from["upload_original_package_task_id"])
+        original_package_location = original_package_location [0]
         # Get GDALInfo output from XCom
         gdalinfo_task_id = self.get_inputs_from["gdalinfo_task_id"]
         gdalinfo_dict = context["task_instance"].xcom_pull(gdalinfo_task_id)
@@ -235,7 +278,7 @@ class Landsat8MTLReaderOperator(BaseOperator):
             parsed_metadata = parse_mtl_data(mtl_fh)
         bounding_box = get_bounding_box(parsed_metadata["PRODUCT_METADATA"])
         log.debug("BoundingBox: {}".format(pprint.pformat(bounding_box)))
-        prepared_metadata = prepare_metadata(parsed_metadata, bounding_box, crs)
+        prepared_metadata = prepare_metadata(parsed_metadata, bounding_box, crs, original_package_location)
         product_directory, mtl_name = os.path.split(mtl_path)
         location = os.path.join(self.loc_base_dir, product_directory, mtl_name)
         granules_dict = prepare_granules(bounding_box, granule_paths)

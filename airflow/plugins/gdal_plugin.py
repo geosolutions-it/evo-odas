@@ -8,6 +8,7 @@ from airflow.operators import BashOperator
 from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
+from airflow.models import XCOM_RETURN_KEY
 
 log = logging.getLogger(__name__)
 
@@ -175,7 +176,9 @@ class GDALAddoOperator(BaseOperator):
         self.compress_overview = compress_overview
 
     def execute(self, context):
-        input_path = context["task_instance"].xcom_pull(self.get_inputs_from)
+        input_paths = context["task_instance"].xcom_pull(self.get_inputs_from, key=XCOM_RETURN_KEY)
+        input_path = input_paths[0]
+
         levels = get_overview_levels(self.max_overview_level)
         log.info("Generating overviews for {!r}...".format(input_path))
         command = get_gdaladdo_command(
@@ -235,7 +238,9 @@ class GDALTranslateOperator(BaseOperator):
             bash_command=command
         )
         b_o.execute(context)
-        return output_path
+
+        output_paths = [output_path]
+        return output_paths
 
 class GDALInfoOperator(BaseOperator):
 
