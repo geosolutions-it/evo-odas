@@ -137,23 +137,16 @@ class RSYNCOperator(BaseOperator):
         # construct list of filenames uploaded to remote host
         files_list = files_str.split()
         filenames_list = list(os.path.join(self.remote_dir, os.path.basename(path)) for path in files_list)
-
+        log.info("Uploaded files: {}".format(pprint.pformat(files_list)))
         return filenames_list
 
 class S1MetadataOperator(BaseOperator):
     @apply_defaults
-    def __init__(self, product_safe_path, granules_paths, granules_upload_dir, working_dir, get_inputs_from=None, xk_pull_dag_id=None, xk_pull_task_id=None, xk_pull_key_safe=None, xk_pull_key_granules_paths=None, xk_push_key=None,
-                 *args, **kwargs):
-        self.product_safe_path = product_safe_path
+    def __init__(self, granules_paths, granules_upload_dir, working_dir, get_inputs_from=None, *args, **kwargs):
         self.granules_paths = granules_paths
         self.granules_upload_dir = granules_upload_dir
         self.working_dir = working_dir
         self.get_inputs_from = get_inputs_from
-        self.xk_pull_dag_id = xk_pull_dag_id
-        self.xk_pull_task_id = xk_pull_task_id
-        self.xk_pull_key_safe = xk_pull_key_safe
-        self.xk_pull_key_granules_paths = xk_pull_key_granules_paths
-        self.xk_push_key = xk_push_key
 
         super(S1MetadataOperator, self).__init__(*args, **kwargs)
 
@@ -162,88 +155,41 @@ class S1MetadataOperator(BaseOperator):
         task_instance = context['task_instance']
 
         log.info("""
-            product_safe_path: {}
             granules_paths: {}
             granules_upload_dir: {}
             get_inputs_from: {}
-            xk_pull_task_id: {}
-            xk_pull_dag_id: {}
-            xk_pull_key_safe: {}
-            xk_pull_key_granules_paths: {}
-            xk_push_key: {}
             """.format(
-            self.product_safe_path,
             self.granules_paths,
             self.granules_upload_dir,
             self.get_inputs_from,
-            self.xk_pull_task_id,
-            self.xk_pull_dag_id,
-            self.xk_pull_key_safe,
-            self.xk_pull_key_granules_paths,
-            self.xk_push_key,
             )
         )
-        # init XCom parameters
-        if self.xk_pull_dag_id is None:
-            self.xk_pull_dag_id = context['dag'].dag_id
 
-        # check input file path passed otherwise look for it in XCom
-        product_safe_path = None
-        if self.product_safe_path is not None:
-            product_safe_path = self.product_safe_path
-        elif self.get_inputs_from is not None:
-            inputs = context['task_instance'].xcom_pull(task_ids=self.get_inputs_from, key=XCOM_RETURN_KEY) 
-            log.info("Receiving from 'get_input_from':\n{}".format(inputs))
-            if inputs is not None and len(inputs.keys()) > 0:
-                product_safe_path = inputs.keys()[0]
-                self.working_dir = os.path.join(self.working_dir,inputs[product_safe_path].get('title'))
-        else:
-            if self.xk_pull_key_safe is None:
-                self.xk_pull_key_safe = 'product_safe_path'
-            # log.info('XCom Pull: task_ids: {} key: {} dag_id: {}'.format(self.xk_pull_task_id, self.xk_pull_key_safe, self.xk_pull_dag_id))
-            downloaded = task_instance.xcom_pull(task_ids='dhus_download_task', key='downloaded_products', dag_id=self.xk_pull_dag_id)
-            for k in downloaded:
-                product_safe_path = downloaded[k]['path']
-                break
+        log.info("Receiving from 'get_input_from':\n{}".format(self.get_inputs_from))
 
-        if product_safe_path is None:
-            log.error("No Zip file retrived via XCom")
-            return
+        download_task_id = self.get_inputs_from['download_task_id']
+        addo_task_ids = self.get_inputs_from['addo_task_ids']
+        upload_task_ids = self.get_inputs_from['upload_task_ids']
 
-        log.info('product_safe_path: %s', product_safe_path)
+        downloaded = context['task_instance'].xcom_pull(task_ids=download_task_id, key=XCOM_RETURN_KEY)
+        local_granules_paths = context['task_instance'].xcom_pull(task_ids=addo_task_ids, key=XCOM_RETURN_KEY)
+        uploaded_granules_paths = context['task_instance'].xcom_pull(task_ids=upload_task_ids, key=XCOM_RETURN_KEY)
 
-        if self.granules_paths is not None:
-            granules_paths = self.granules_paths
-        else:
-            if self.xk_pull_key_granules_paths is None:
-                self.xk_pull_key_granules_paths = 'granules_paths'
-            # log.info('XCom Pull: task_ids: {} key: {} dag_id: {}'.format(self.xk_pull_task_id, self.xk_pull_key_safe, self.xk_pull_dag_id))
-            self.xk_pull_dag_id += '.sentinel1_gdal'
-            log.info('xk_pull_dag_id: %s', self.xk_pull_dag_id)
-            granules_paths = []
-            granule_path = task_instance.xcom_pull(task_ids='gdal_addo_1', key='dstfile', dag_id=self.xk_pull_dag_id)
-            granules_paths.append(granule_path)
-            granule_path = task_instance.xcom_pull(task_ids='gdal_addo_2', key='dstfile', dag_id=self.xk_pull_dag_id)
-            granules_paths.append(granule_path)
+        safe_package_path = downloaded.keys()[0]
+        product_id = downloaded[safe_package_path].get('title')
+        working_dir = os.path.join(self.working_dir, product_id)
 
-        if len(granules_paths) == 0:
-            log.error("No Granules path retrived via XCom")
-            raise TypeError
-        log.info('granules_paths: %s', granules_paths)
-
-        # push output path to XCom
-        #if self.xk_push_key is None:
-        #    self.xk_push_key = 'dstfile'
-        #task_instance.xcom_push(key='dstfile', value=dstfile)
+        log.info('safe_package_path: {}'.format(safe_package_path))
+        log.info('local_granules_paths: {}'.format(local_granules_paths))
 
         po = PythonOperator(
             task_id="s1_metadata_dictionary_creation",
             python_callable=create_procuct_zip,
             op_kwargs={
-                'sentinel1_product_zip_path': product_safe_path,
-                'granules_paths': granules_paths,
+                'sentinel1_product_zip_path': safe_package_path,
+                'granules_paths': local_granules_paths,
                 'granules_upload_dir':self.granules_upload_dir,
-                'working_dir': self.working_dir
+                'working_dir': working_dir
             }
         )
         zip_paths=list()
