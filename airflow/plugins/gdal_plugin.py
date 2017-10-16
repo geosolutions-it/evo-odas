@@ -52,20 +52,14 @@ def get_gdal_translate_command(source, destination, output_type,
 class GDALWarpOperator(BaseOperator):
 
     @apply_defaults
-    def __init__(self, target_srs, tile_size, overwrite, srcfile=None,
-                 dstdir=None, xk_pull_dag_id=None, xk_pull_task_id=None,
-                 xk_pull_key_srcfile=None, xk_pull_key_dstdir=None,
-                 xk_push_key=None, *args, **kwargs):
+    def __init__(self, target_srs, tile_size, overwrite, dstdir, get_inputs_from=None,
+                 *args, **kwargs):
         self.target_srs = target_srs
         self.tile_size = str(tile_size)
         self.overwrite = overwrite
-        self.srcfile = srcfile
         self.dstdir = dstdir
-        self.xk_pull_dag_id = xk_pull_dag_id
-        self.xk_pull_task_id = xk_pull_task_id
-        self.xk_pull_key_srcfile = xk_pull_key_srcfile
-        self.xk_pull_key_dstdir = xk_pull_key_dstdir
-        self.xk_push_key = xk_push_key
+        self.get_inputs_from = get_inputs_from
+
         super(GDALWarpOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -75,92 +69,45 @@ class GDALWarpOperator(BaseOperator):
             target_srs: {}
             tile_size: {}
             overwrite: {}
-            srcfile: {}
             dstdir: {}
-            xk_pull_task_id: {}
-            xk_pull_key_srcfile: {}
-            xk_pull_key_dstdir: {}
-            xk_push_key: {}
-            xk_pull_dag_id: {}
+            get_inputs_from: {}
             """.format(
             self.target_srs,
             self.tile_size,
             self.overwrite,
-            self.srcfile,
             self.dstdir,
-            self.xk_pull_task_id,
-            self.xk_pull_key_srcfile,
-            self.xk_pull_key_dstdir,
-            self.xk_push_key,
-            self.xk_pull_dag_id
+            self.get_inputs_from,
             )
         )
-        # init XCom parameters
-        if self.xk_pull_dag_id is None:
-            self.xk_pull_dag_id = context['dag'].dag_id
-        # check input file path passed otherwise look for it in XCom
-        if self.srcfile is not None:
-            srcfile = self.srcfile
-        else:
-            if self.xk_pull_key_srcfile is None:
-                self.xk_pull_key_srcfile = 'srcdir'
-            log.debug('Fetching srcfile from XCom')
-            srcfile = task_instance.xcom_pull(
-                task_ids=self.xk_pull_task_id,
-                key=self.xk_pull_key_srcfile,
-                dag_id=self.xk_pull_dag_id
+
+        dstdir = self.dstdir
+
+        input_paths= task_instance.xcom_pull(self.get_inputs_from, key=XCOM_RETURN_KEY)
+        if input_paths is None:
+            log.info('Nothing to do')
+            return None
+
+        output_paths=[]
+        for srcfile in input_paths:
+            log.info('srcfile: %s', srcfile)
+            srcfilename = os.path.basename(srcfile)
+            dstfile = os.path.join(dstdir, srcfilename)
+            log.info('dstfile: %s', dstfile)
+
+            # build gdalwarp command
+            self.overwrite = '-overwrite' if self.overwrite else ''
+            gdalwarp_command = (
+                'gdalwarp ' + self.overwrite + ' -t_srs ' + self.target_srs +
+                ' -co TILED=YES -co BLOCKXSIZE=' + self.tile_size +
+                ' -co BLOCKYSIZE=' + self.tile_size + ' ' + srcfile + ' ' +
+                dstfile
             )
-            if srcfile is None:
-                log.warn('No srcfile fetched from XCom. Nothing to do')
-                return False
-        assert srcfile is not None
-        log.info('srcfile: %s', srcfile)
+            log.info('The complete GDAL warp command is: %s', gdalwarp_command)
+            bo = BashOperator(task_id="bash_operator_warp", bash_command=gdalwarp_command)
+            bo.execute(context)
+            output_paths.append(dstfile)
 
-        # extract filename and directory path
-        srcfilename = os.path.basename(srcfile)
-        srcdir = os.path.dirname(srcfile)
-
-        # check output file path passed otherwise try to find it in XCom
-        if self.dstdir is not None:
-            dstdir = self.dstdir
-        else:
-            if self.xk_pull_key_dstdir is None:
-                self.xk_pull_key_dstdir = 'dstdir'
-            log.debug('Fetching dstdir from XCom')
-            dstdir = task_instance.xcom_pull(
-                task_ids=self.xk_pull_task_id,
-                key=self.xk_pull_key_dstdir,
-                dag_id=context['dag'].dag_id
-            )
-            log.info('No dstdir fetched from XCom')
-        # not found in XCom? use source directory
-        if dstdir is None:
-            log.info("using srcdir as dstdir")
-            dstdir = srcdir
-        log.info('dstdir: %s', dstdir)
-        dstfile = os.path.join(dstdir, srcfilename)
-        assert dstfile is not None
-        log.info('dstfile: %s', dstfile)
-
-        # build gdalwarp command
-        self.overwrite = '-overwrite' if self.overwrite else ''
-        gdalwarp_command = (
-            'gdalwarp ' + self.overwrite + ' -t_srs ' + self.target_srs +
-            ' -co TILED=YES -co BLOCKXSIZE=' + self.tile_size +
-            ' -co BLOCKYSIZE=' + self.tile_size + ' ' + srcfile + ' ' +
-            dstfile
-        )
-        log.info('The complete GDAL warp command is: %s', gdalwarp_command)
-
-        # push output path to XCom
-        if self.xk_push_key is None:
-            self.xk_push_key = 'dstfile'
-        task_instance.xcom_push(key='dstfile', value=dstfile)
-
-        # run the command
-        bo = BashOperator(
-            task_id="bash_operator_warp", bash_command=gdalwarp_command)
-        bo.execute(context)
+        return output_paths
 
 
 class GDALAddoOperator(BaseOperator):
