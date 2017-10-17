@@ -18,6 +18,7 @@ download_dir = os.path.join(collection_dir,"download")
 process_dir = os.path.join(collection_dir,"process")
 upload_dir = os.path.join(collection_dir,"upload")
 repository_dir = os.path.join(collection_dir,"repository")
+original_package_download_base_url = "http://geoserver.cloudsdi.geo-solutions.it/data/sentinel/sentinel2/S2_MSI_L1C"
 
 #
 # DHUS specific

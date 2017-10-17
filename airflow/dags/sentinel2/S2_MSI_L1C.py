@@ -115,7 +115,8 @@ metadata_task = Sentinel2MetadataOperator(task_id = 'extract_metadata_task',
                                           GS_WCS_SCALE_I = S2MSIL1C.geoserver_oseo_wcs_scale_i,
                                           GS_WCS_SCALE_J = S2MSIL1C.geoserver_oseo_wcs_scale_j,
                                           GS_WCS_FORMAT = S2MSIL1C.geoserver_oseo_wcs_format,
-                                          get_inputs_from=download_task.task_id,
+                                          get_inputs_from = [download_task.task_id, archive_task.task_id],
+                                          ORIGINAL_PACKAGE_DOWNLOAD_BASE_URL = S2MSIL1C.original_package_download_base_url,
                                           dag = dag)
 
 # Archive Sentinel-2 RSYNC with .prj and .wld files Task Operator
