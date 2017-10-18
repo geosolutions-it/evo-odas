@@ -123,6 +123,7 @@ def generate_dag(area, download_dir, default_args):
     translate_tasks = []
     addo_tasks = []
     upload_tasks = []
+    gdalinfo_tasks = []
 
     for band in area.bands:
         download_band = Landsat8DownloadOperator(
@@ -151,6 +152,12 @@ def generate_dag(area, download_dir, default_args):
         )
         addo_tasks.append(addo)
 
+        gdalinfo = GDALInfoOperator(
+            task_id='landsat8_gdalinfo_band_{}'.format(band),
+            get_inputs_from=addo.task_id,
+            dag=dag
+        )
+        gdalinfo_tasks.append(gdalinfo)
 
         upload = RSYNCOperator(
             task_id="upload_band{}".format(band),
@@ -165,8 +172,10 @@ def generate_dag(area, download_dir, default_args):
         download_band.set_upstream(search_task)
         translate.set_upstream(download_band)
         addo.set_upstream(translate)
+        gdalinfo.set_upstream(addo)
         upload.set_upstream(addo)
         join_task.set_upstream(upload)
+        join_task.set_upstream(gdalinfo)
 
     download_task_ids = ( task.task_id for task in download_tasks )
     create_original_package_task = PythonOperator(task_id="create_original_package",
@@ -190,12 +199,9 @@ def generate_dag(area, download_dir, default_args):
         get_inputs_from=create_original_package_task.task_id,
         dag=dag)
 
-    addo_task_ids = ( task.task_id for task in addo_tasks )
-    gdalinfo_task = GDALInfoOperator(
-        task_id='landsat8_gdalinfo',
-        get_inputs_from=addo_task_ids,
-        dag=dag
-    )
+    # we only neeed gdalinfo output on one of the granules
+    gdalinfo_task = gdalinfo_tasks[0]
+    gdalinfo_task_id = gdalinfo_task.task_id
 
     upload_task_ids = (task.task_id for task in upload_tasks)
     generate_metadata = Landsat8MTLReaderOperator(
@@ -204,7 +210,7 @@ def generate_dag(area, download_dir, default_args):
             "search_task_id"  : search_task.task_id,
             "metadata_task_id": download_metadata.task_id,
             "upload_task_ids" : upload_task_ids,
-            "gdalinfo_task_id": gdalinfo_task.task_id,
+            "gdalinfo_task_id": gdalinfo_task_id,
             "upload_original_package_task_id": upload_original_package_task.task_id,
         },
         loc_base_dir='/efs/geoserver_data/coverages/landsat8/{}'.format(
@@ -241,9 +247,8 @@ def generate_dag(area, download_dir, default_args):
     for tid in download_tasks:
         create_original_package_task.set_upstream(tid)
     upload_original_package_task.set_upstream(create_original_package_task)
-    gdalinfo_task.set_upstream(join_task)
+    generate_metadata.set_upstream(join_task)
     generate_metadata.set_upstream(download_metadata)
-    generate_metadata.set_upstream(gdalinfo_task)
     generate_metadata.set_upstream(upload_original_package_task)
     generate_thumbnail.set_upstream(download_thumbnail)
     generate_html_description.set_upstream(search_task)
