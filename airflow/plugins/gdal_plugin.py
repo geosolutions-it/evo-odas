@@ -1,6 +1,7 @@
 from itertools import count
 import logging
 import os
+import six
 import pprint
 from subprocess import check_output
 
@@ -48,8 +49,27 @@ def get_gdal_translate_command(source, destination, output_type,
         )
     )
 
+def _get_gdal_creation_options(**creation_options):
+    result = ""
+    for name, value in creation_options.items():
+        opt = '-co "{}={}"'.format(name.upper(), value)
+        " ".join((result, opt))
+    return result
+
 
 class GDALWarpOperator(BaseOperator):
+    """ Execute gdalwarp with given options on list of files fetched from XCom. Returns output files paths to XCom.
+
+    Args:
+        target_srs (str): parameter for gdalwarp
+        tile_size (str): parameter for gdalwarp
+        overwrite (str): parameter for gdalwarp
+        dstdir (str): output files directory
+        get_inputs_from (str): task_id used to fetch input files list from XCom
+
+    Returns:
+        list: list of output files path
+    """
 
     @apply_defaults
     def __init__(self, target_srs, tile_size, overwrite, dstdir, get_inputs_from=None,
@@ -84,7 +104,7 @@ class GDALWarpOperator(BaseOperator):
 
         input_paths= task_instance.xcom_pull(self.get_inputs_from, key=XCOM_RETURN_KEY)
         if input_paths is None:
-            log.info('Nothing to do')
+            log.info('Nothing to process')
             return None
 
         output_paths=[]
@@ -111,6 +131,17 @@ class GDALWarpOperator(BaseOperator):
 
 
 class GDALAddoOperator(BaseOperator):
+    """ Execute gdaladdo with given options on list of files fetched from XCom. Returns output files paths to XCom.
+
+    Args:
+        resampling_method (str): parameter for gdaladdo
+        max_overview_level (str): parameter for gdaladdo
+        compress_overview (str): parameter for gdaladdo
+        get_inputs_from (str): task_id used to fetch input files list from XCom
+
+    Returns:
+        list: list containing output files path
+    """
 
     @apply_defaults
     def __init__(self, get_inputs_from, resampling_method,
@@ -124,26 +155,42 @@ class GDALAddoOperator(BaseOperator):
 
     def execute(self, context):
         input_paths = context["task_instance"].xcom_pull(self.get_inputs_from, key=XCOM_RETURN_KEY)
-        input_path = input_paths[0]
+        if input_paths is None:
+            log.info("Nothing to process")
+            return None
 
-        levels = get_overview_levels(self.max_overview_level)
-        log.info("Generating overviews for {!r}...".format(input_path))
-        command = get_gdaladdo_command(
-            input_path, overview_levels=levels,
-            resampling_method=self.resampling_method,
-            compress_overview=self.compress_overview
-        )
-        output_path= input_path
-        bo = BashOperator(
-            task_id='bash_operator_addo_{}'.format(
-                os.path.basename(input_path)),
-            bash_command=command
-        )
-        bo.execute(context)
-        return output_path
+        output_paths = []
+        for input_path in input_paths:
+            levels = get_overview_levels(self.max_overview_level)
+            log.info("Generating overviews for {!r}...".format(input_path))
+            command = get_gdaladdo_command(
+                input_path, overview_levels=levels,
+                resampling_method=self.resampling_method,
+                compress_overview=self.compress_overview
+            )
+            output_path = input_path
+            output_paths.append(output_path)
+            bo = BashOperator(
+                task_id='bash_operator_addo_{}'.format(
+                    os.path.basename(input_path)),
+                bash_command=command
+            )
+            bo.execute(context)
+
+        return output_paths
 
 
 class GDALTranslateOperator(BaseOperator):
+    """ Execute gdaltranslate with given options on file fetched from XCom. Returns output file paths to XCom.
+
+    Args:
+        creation_options (str): parameter for gdaltranslate
+        output_type (str): parameter for gdaltranslate
+        get_inputs_from (str): task_id used to fetch input files list from XCom
+
+    Returns:
+        list: list containing output files path
+    """
 
     @apply_defaults
     def __init__(self, get_inputs_from, output_type="UInt16",
@@ -159,9 +206,16 @@ class GDALTranslateOperator(BaseOperator):
         }
 
     def execute(self, context):
-        downloaded_path = context["task_instance"].xcom_pull(
-            self.get_inputs_from)
-        working_dir = os.path.join(os.path.dirname(downloaded_path),
+        input_paths = context["task_instance"].xcom_pull(self.get_inputs_from, key=XCOM_RETURN_KEY)
+        if input_paths is None:
+            log.info("Nothing to process")
+            return None
+
+        # If message from XCom is a string with single file path, turn it into a string
+        if isinstance(input_paths, six.string_types):
+            input_paths = [ input_paths ]
+
+        working_dir = os.path.join(os.path.dirname(input_paths[0]),
                                    "__translated")
         try:
             os.makedirs(working_dir)
@@ -171,25 +225,37 @@ class GDALTranslateOperator(BaseOperator):
             else:
                 raise
 
-        output_img_filename = 'translated_{}'.format(
-            os.path.basename(downloaded_path))
-        output_path = os.path.join(working_dir, output_img_filename)
-        command = get_gdal_translate_command(
-            source=downloaded_path, destination=output_path,
-            output_type=self.output_type,
-            creation_options=self.creation_options
-        )
-        log.info("The complete GDAL translate command is: {}".format(command))
-        b_o = BashOperator(
-            task_id="bash_operator_translate",
-            bash_command=command
-        )
-        b_o.execute(context)
+        output_paths = []
+        for input_path in input_paths:
+            output_img_filename = 'translated_{}'.format(
+                os.path.basename(input_path))
+            output_path = os.path.join(working_dir, output_img_filename)
+            output_paths.append(output_path)
+            command = get_gdal_translate_command(
+                source=input_path, destination=output_path,
+                output_type=self.output_type,
+                creation_options=self.creation_options
+            )
+
+            log.info("The complete GDAL translate command is: {}".format(command))
+            b_o = BashOperator(
+                task_id="bash_operator_translate",
+                bash_command=command
+            )
+            b_o.execute(context)
 
         output_paths = [output_path]
         return output_paths
 
 class GDALInfoOperator(BaseOperator):
+    """ Execute gdalinfo with given options on list of files fetched from XCom. Returns output files paths to XCom.
+
+    Args:
+        get_inputs_from (str): task_id used to fetch input files list from XCom
+
+    Returns:
+        dict: dictionary mapping input files to the matching gdalinfo output
+    """
 
     @apply_defaults
     def __init__(self, get_inputs_from, *args, **kwargs):
@@ -197,9 +263,12 @@ class GDALInfoOperator(BaseOperator):
         self.get_inputs_from = get_inputs_from
 
     def execute(self, context):
-        input_paths = []
-        for get_input in self.get_inputs_from:
-            input_paths.append(context["task_instance"].xcom_pull(get_input))
+        input_paths = context["task_instance"].xcom_pull(self.get_inputs_from, key=XCOM_RETURN_KEY)
+
+        if input_paths is None:
+            log.info("Nothing to process")
+            return None
+
         gdalinfo_outputs = {}
         for input_path in input_paths:
             command = ["gdalinfo"]
@@ -208,6 +277,7 @@ class GDALInfoOperator(BaseOperator):
             gdalinfo_output = check_output(command)
             log.info("{}".format(gdalinfo_output))
             gdalinfo_outputs[input_path] = gdalinfo_output
+
         return gdalinfo_outputs
 
 
@@ -219,12 +289,3 @@ class GDALPlugin(AirflowPlugin):
         GDALTranslateOperator,
         GDALInfoOperator
     ]
-
-
-def _get_gdal_creation_options(**creation_options):
-    result = ""
-    for name, value in creation_options.items():
-        opt = '-co "{}={}"'.format(name.upper(), value)
-        " ".join((result, opt))
-    return result
-
