@@ -119,10 +119,11 @@ class RSYNCOperator(BaseOperator):
 
 class S1MetadataOperator(BaseOperator):
     @apply_defaults
-    def __init__(self, granules_paths, granules_upload_dir, working_dir, get_inputs_from=None, *args, **kwargs):
+    def __init__(self, granules_paths, granules_upload_dir, working_dir, original_package_download_base_url, get_inputs_from=None, *args, **kwargs):
         self.granules_paths = granules_paths
         self.granules_upload_dir = granules_upload_dir
         self.working_dir = working_dir
+        self.original_package_download_base_url = original_package_download_base_url
         self.get_inputs_from = get_inputs_from
 
         super(S1MetadataOperator, self).__init__(*args, **kwargs)
@@ -134,10 +135,14 @@ class S1MetadataOperator(BaseOperator):
         log.info("""
             granules_paths: {}
             granules_upload_dir: {}
+            working_dir: {}
+            original_package_download_base_url: {}
             get_inputs_from: {}
             """.format(
             self.granules_paths,
             self.granules_upload_dir,
+            self.working_dir,
+            self.original_package_download_base_url,
             self.get_inputs_from,
             )
         )
@@ -155,6 +160,7 @@ class S1MetadataOperator(BaseOperator):
         original_package_path = context['task_instance'].xcom_pull(task_ids=archive_product_task_id, key=XCOM_RETURN_KEY)
 
         safe_package_path = downloaded.keys()[0]
+        safe_package_filename = os.path.basename(safe_package_path)
         product_id = downloaded[safe_package_path].get('title')
         working_dir = os.path.join(self.working_dir, product_id)
 
@@ -170,7 +176,9 @@ class S1MetadataOperator(BaseOperator):
                 'granules_upload_dir':self.granules_upload_dir,
                 'uploaded_granules_paths': uploaded_granules_paths,
                 'original_package_path': original_package_path,
-                'working_dir': working_dir
+                'working_dir': working_dir,
+                'safe_package_filename': safe_package_filename,
+                'original_package_download_base_url' : self.original_package_download_base_url
             }
         )
         zip_paths=list()

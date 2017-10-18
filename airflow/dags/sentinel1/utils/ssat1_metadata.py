@@ -241,7 +241,8 @@ def get_bbox_from_granule(granule_path):
     urx, ury = (lrx, uly)
     return [ [ulx,uly], [llx,lly], [lrx,lry], [urx,ury], [ulx,uly] ]
 
-def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_upload_dir, working_dir=WORKING_DIR):
+def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_upload_dir, uploaded_granules_paths,
+                       original_package_path, safe_package_filename, original_package_download_base_url, working_dir=WORKING_DIR):
     s1reader = S1GDALReader(sentinel1_product_zip_path)
     files = []
 
@@ -252,6 +253,10 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
     log.info(pprint.pformat(s1metadata['footprint'], indent=4))
 
     (search_params, other_metadata, product_abstract_metadata) = collect_sentinel1_metadata(s1metadata)
+
+    # Add OriginalPackage Location
+    search_params['properties']['originalPackageLocation'] = "{}/{}".format(original_package_download_base_url, safe_package_filename)
+
     log.info(pprint.pformat(search_params))
     log.info(pprint.pformat(other_metadata))
     log.info(pprint.pformat(product_abstract_metadata))

@@ -182,10 +182,12 @@ metadata_task = S1MetadataOperator(task_id="extract_metadata_task",
                                    granules_paths=None,
                                    granules_upload_dir=S1GRD1SDV.repository_dir,
                                    working_dir=S1GRD1SDV.process_dir,
+                                   original_package_download_base_url=S1GRD1SDV.original_package_download_base_url,
                                    get_inputs_from = {
                                        'download_task_id': download_task.task_id,
                                        'addo_task_ids': addo_task_ids,
                                        'upload_task_ids': upload_task_ids,
+                                       'archive_product_task_id' : archive_task.task_id,
                                    },
                                    dag=dag)
 
