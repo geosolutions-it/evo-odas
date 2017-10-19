@@ -82,8 +82,8 @@ class UpdateSceneList(BaseOperator):
 
     def execute(self, context):
         db_connection = psycopg2.connect(
-            "dbname='{}' user='{}' host='{}' password='{}'".format(
-                self.pg_dbname, self.pg_username, self.pg_hostname,
+            "dbname='{}' user='{}' host='{}' port='{}' password='{}'".format(
+                self.pg_dbname, self.pg_username, self.pg_hostname, self.pg_port,
                 self.pg_password
             )
         )
