@@ -253,12 +253,11 @@ class Landsat8MTLReaderOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, get_inputs_from, loc_base_dir, metadata_xml_path,
+    def __init__(self, get_inputs_from, metadata_xml_path,
                  *args, **kwargs):
         super(Landsat8MTLReaderOperator, self).__init__(*args, **kwargs)
         self.get_inputs_from = get_inputs_from
         self.metadata_xml_path = metadata_xml_path
-        self.loc_base_dir = loc_base_dir
 
     def execute(self, context):
         # fetch MTL file path from XCom
@@ -294,7 +293,6 @@ class Landsat8MTLReaderOperator(BaseOperator):
         log.debug("BoundingBox: {}".format(pprint.pformat(bounding_box)))
         prepared_metadata = prepare_metadata(parsed_metadata, bounding_box, crs, original_package_location)
         product_directory, mtl_name = os.path.split(mtl_path)
-        location = os.path.join(self.loc_base_dir, product_directory, mtl_name)
         granules_dict = prepare_granules(bounding_box, granule_paths)
         log.debug("Granules Dict: {}".format(pprint.pformat(granules_dict)))
         json_path = os.path.join(product_directory, "product.json")

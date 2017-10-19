@@ -1,6 +1,5 @@
-from collections import namedtuple
 from datetime import datetime
-from datetime import timedelta
+
 import os
 
 from airflow.models import DAG
@@ -19,11 +18,8 @@ from airflow.operators import RSYNCOperator
 from geoserver_plugin import publish_product
 from landsat8_metadata_plugin import create_original_package
 
-from landsat8.secrets import postgresql_credentials, geoserver_credentials
-from landsat8.config import rsync_hostname, rsync_username, rsync_ssh_key_file, rsync_remote_dir
-from landsat8.config import geoserver_rest_url, geoserver_oseo_collection
-
-ORIGINAL_PACKAGE_OUT_DIR="/tmp"
+import config as CFG
+import config.landsat8 as LANDSAT8
 
 # These ought to be moved to a more central place where other settings might
 # be stored
@@ -34,24 +30,8 @@ PROJECT_ROOT = os.path.dirname(
         )
     )
 )
-DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "download")
+
 TEMPLATES_PATH = os.path.join(PROJECT_ROOT, "metadata-ingestion", "templates")
-
-Landsat8Area = namedtuple("Landsat8Area", [
-    "name",
-    "path",
-    "row",
-    "bands"
-])
-
-
-AREAS = [
-    Landsat8Area(name="daraa", path=174, row=37, bands=range(1, 12)),
-    # These are just some dummy areas in order to test generation of
-    # multiple DAGs
-    Landsat8Area(name="neighbour", path=175, row=37, bands=[1, 2, 3, 7]),
-    Landsat8Area(name="other", path=176, row=37, bands=range(1, 12)),
-]
 
 
 def generate_dag(area, download_dir, default_args):
@@ -67,13 +47,13 @@ def generate_dag(area, download_dir, default_args):
     """
 
     dag = DAG(
-       "Landsat8_{}".format(area.name),
+        LANDSAT8.id_prefix + "_{}".format(area.name),
         description="DAG for downloading, processing and ingesting {} AOI in Landsat8 data "
                     "from scene_list".format(area.name),
         default_args=default_args,
-        dagrun_timeout=timedelta(hours=1),
-        schedule_interval=timedelta(days=1),
-        catchup=False,
+        dagrun_timeout=LANDSAT8.dagrun_timeout,
+        schedule_interval=LANDSAT8.dag_schedule_interval,
+        catchup=LANDSAT8.catchup,
         params={
             "area": area,
         }
@@ -81,8 +61,8 @@ def generate_dag(area, download_dir, default_args):
     search_task = Landsat8SearchOperator(
         task_id='search_{}'.format(area.name),
         area=area,
-        cloud_coverage=90.9,
-        db_credentials=postgresql_credentials,
+        cloud_coverage=LANDSAT8.cloud_coverage,
+        db_credentials= CFG.landsat8_postgresql_credentials,
         dag=dag
     )
     generate_html_description = Landsat8ProductDescriptionOperator(
@@ -161,10 +141,10 @@ def generate_dag(area, download_dir, default_args):
 
         upload = RSYNCOperator(
             task_id="upload_band{}".format(band),
-            host=rsync_hostname,
-            remote_usr=rsync_username,
-            ssh_key_file=rsync_ssh_key_file,
-            remote_dir=rsync_remote_dir,
+            host=CFG.rsync_hostname,
+            remote_usr=CFG.rsync_username,
+            ssh_key_file=CFG.rsync_ssh_key,
+            remote_dir=LANDSAT8.repository_dir,
             get_inputs_from=addo.task_id,
             dag=dag)
         upload_tasks.append(upload)
@@ -186,16 +166,16 @@ def generate_dag(area, download_dir, default_args):
                                           "download_task_ids" : download_task_ids,
                                       }
                                       ,
-                                      'out_dir' : ORIGINAL_PACKAGE_OUT_DIR
+                                      'out_dir' : LANDSAT8.process_dir
                                   },
                                   dag=dag)
 
     upload_original_package_task = RSYNCOperator(
         task_id="upload_original_package",
-        host=rsync_hostname,
-        remote_usr=rsync_username,
-        ssh_key_file=rsync_ssh_key_file,
-        remote_dir=rsync_remote_dir,
+        host=CFG.rsync_hostname,
+        remote_usr=CFG.rsync_username,
+        ssh_key_file=CFG.rsync_ssh_key,
+        remote_dir=LANDSAT8.repository_dir,
         get_inputs_from=create_original_package_task.task_id,
         dag=dag)
 
@@ -213,8 +193,6 @@ def generate_dag(area, download_dir, default_args):
             "gdalinfo_task_id": gdalinfo_task_id,
             "upload_original_package_task_id": upload_original_package_task.task_id,
         },
-        loc_base_dir='/efs/geoserver_data/coverages/landsat8/{}'.format(
-            area.name),
         metadata_xml_path=os.path.join(TEMPLATES_PATH, "metadata.xml"),
         dag=dag
     )
@@ -226,7 +204,7 @@ def generate_dag(area, download_dir, default_args):
             generate_metadata.task_id,
             generate_thumbnail.task_id
         ],
-        output_dir=download_dir,
+        output_dir=LANDSAT8.process_dir,
         dag=dag
     )
 
@@ -234,10 +212,10 @@ def generate_dag(area, download_dir, default_args):
     publish_task = PythonOperator(task_id="publish_product_task",
                                   python_callable=publish_product,
                                   op_kwargs={
-                                      'geoserver_username': geoserver_credentials['username'],
-                                      'geoserver_password': geoserver_credentials['password'],
+                                      'geoserver_username': CFG.geoserver_username,
+                                      'geoserver_password': CFG.geoserver_password,
                                       'geoserver_rest_endpoint': '{}/oseo/collections/{}/products'.format(
-                                          geoserver_rest_url, geoserver_oseo_collection),
+                                          CFG.geoserver_rest_url, LANDSAT8.geoserver_oseo_collection),
                                       'get_inputs_from': product_zip_task.task_id,
                                   },
                                   dag=dag)
@@ -261,8 +239,8 @@ def generate_dag(area, download_dir, default_args):
     return dag
 
 
-for area in AREAS:
-    dag = generate_dag(area, download_dir=DOWNLOAD_DIR, default_args={
+for area in LANDSAT8.AREAS:
+    dag = generate_dag(area, download_dir=LANDSAT8.download_dir, default_args={
         'start_date': datetime(2017, 1, 1),
         'owner': 'airflow',
         'depends_on_past': False,
