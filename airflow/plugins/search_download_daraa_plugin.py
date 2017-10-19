@@ -13,7 +13,17 @@ log = logging.getLogger(__name__)
 
 
 class Landsat8SearchOperator(BaseOperator):
+    """Landsat8SearchOperator searches for scenes/granules to be downloaded from Landsat8DownloadOperator. It has search criteria (area of interest and cloud coverage). The current implementation is searching for granules in the created DB (from Landsat8_Scene_List DAG)
 
+        Args:
+            area (tuple): Named tuple instance contains name, path, row and bands info
+            cloud_coverage (float): allowed cloud coverage percentage
+            db_credentials (dict): carrying postgres connection string info
+
+        Returns:
+            tuple contains:
+            product_id, entity_id, download_url
+    """
     @apply_defaults
     def __init__(self, area, cloud_coverage, db_credentials, *args, **kwargs):
         super(Landsat8SearchOperator, self).__init__(*args, **kwargs)
@@ -22,6 +32,9 @@ class Landsat8SearchOperator(BaseOperator):
         self.db_credentials = dict(db_credentials)
 
     def execute(self, context):
+        if self.area is None or self.db_credentials is None:
+            log.info("Either area of interest or credentials received with None.")
+            return
         connection = psycopg2.connect(
             dbname=self.db_credentials["dbname"],
             user=self.db_credentials["username"],
@@ -39,21 +52,27 @@ class Landsat8SearchOperator(BaseOperator):
         )
         data = (self.cloud_coverage, self.area.path, self.area.row)
         cursor.execute(query, data)
-        try:
-            product_id, entity_id, download_url = cursor.fetchone()
+        product_id, entity_id, download_url = cursor.fetchone()
+        if product_id is None or entity_id is None or download_url is None:
+            log.error("Could not find any product for the {} area".format(self.area))
+            return
+        else:
             log.info(
                 "Found {} product with {} scene id, available for download "
-                "through {} ".format(product_id, entity_id, download_url)
-            )
-        except TypeError:
-            log.error(
-                "Could not find any product for the {} area".format(self.area))
-        else:
+                "through {} ".format(product_id, entity_id, download_url))
             return (product_id, entity_id, download_url)
 
-
 class Landsat8DownloadOperator(BaseOperator):
-    """Download a single Landsat8 file."""
+    """Landsat8DownloadOperator downloads scenes/granules which were found using Landsat8SearchOperator.
+
+        Args:
+            download_dir (str): path to the download directory
+            get_inputs_from (str): task_id to pull the xcom value from search task
+            url_fragment (str): string to be replaced with the filename(.tif/.mtl/.jpg)
+
+        Returns:
+            target_path (str) : path to the downloaded Landsat-8 product/scene 
+    """
 
     @apply_defaults
     def __init__(self, download_dir, get_inputs_from, url_fragment,
@@ -66,6 +85,9 @@ class Landsat8DownloadOperator(BaseOperator):
 
     def execute(self, context):
         task_inputs = context["task_instance"].xcom_pull(self.get_inputs_from)
+        if task_inputs is None or len(task_inputs) == 0:
+            log.info("Nothing to process.")
+            return
         product_id, entity_id, download_url = task_inputs
         target_dir = os.path.join(self.download_dir, entity_id)
         try:
