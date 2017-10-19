@@ -413,11 +413,10 @@ class Landsat8ProductZipFileOperator(BaseOperator):
 
 
 class Landsat8GranuleJsonFileOperator(BaseOperator):
-    """Landsat8GranuleJsonFileOperator 
+    """Landsat8GranuleJsonFileOperator creates granule.json file for Landsat-8 scene/granule
 
         Args:
-            location_prop (str): 
-
+            location_prop (str): location property refers to the path of the granule on-disk to be added to the granule.json 
 
         Returns:
             True

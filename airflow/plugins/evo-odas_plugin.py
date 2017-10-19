@@ -19,11 +19,11 @@ log = logging.getLogger(__name__)
 
 
 class ZipInspector(BaseOperator):
-    """ ZipInspector goes through the downloaded product zipfile searching for a defined extension (.tiff)
+    """ ZipInspector takes list of downloaded products and goes through the downloaded product's zipfiles and searches for a defined extension (.tiff)  
 
     Args:
         extension_to_search (str): image extension to search for 
-        get_inputs_from (str): task_id used to fetch input file from XCom 
+        get_inputs_from (str): task_id used to fetch input files from XCom (as a list of products)
 
     Returns:
         dict: keys are zipfiles and values are lists containing virtual paths 
@@ -76,7 +76,7 @@ class RSYNCOperator(BaseOperator):
     """ RSYNCOperator is using rsync command line to upload files remotely using ssh keys
 
     Args:
-        host (str): image extension to search for 
+        host (str): hostname/ip of the remote machine
         remote_usr (str): username of the remote account/machine
         ssh_key_file (str): path to the ssh key file
         remote_dir (str): remote directory to receive the uploaded files
