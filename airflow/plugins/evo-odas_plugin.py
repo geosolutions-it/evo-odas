@@ -155,7 +155,10 @@ class S1MetadataOperator(BaseOperator):
         archive_product_task_id = self.get_inputs_from['archive_product_task_id']
 
         downloaded = context['task_instance'].xcom_pull(task_ids=download_task_id, key=XCOM_RETURN_KEY)
-        local_granules_paths = context['task_instance'].xcom_pull(task_ids=addo_task_ids, key=XCOM_RETURN_KEY)
+
+        local_granules_paths = []
+        for tid in addo_task_ids:
+            local_granules_paths += context['task_instance'].xcom_pull(task_ids=tid, key=XCOM_RETURN_KEY)
         uploaded_granules_paths = context['task_instance'].xcom_pull(task_ids=upload_task_ids, key=XCOM_RETURN_KEY)
         original_package_path = context['task_instance'].xcom_pull(task_ids=archive_product_task_id, key=XCOM_RETURN_KEY)
 

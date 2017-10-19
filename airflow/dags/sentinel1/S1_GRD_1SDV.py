@@ -68,6 +68,10 @@ def prepare_band_paths(get_inputs_from, *args, **kwargs):
 
     task_instance = kwargs['ti']
 
+    # band  number from task name
+    task_id = task_instance.task_id
+    band_number = int(task_id.split('_')[-1])
+
     log.info("Getting inputs from: " + get_inputs_from)
     product_bands_dict = task_instance.xcom_pull(task_ids=get_inputs_from, key=XCOM_RETURN_KEY)
     if product_bands_dict is None:
@@ -80,7 +84,9 @@ def prepare_band_paths(get_inputs_from, *args, **kwargs):
     for k in product_bands_dict:
         files_path += product_bands_dict[k]
 
-    return files_path
+    # Push one of the band paths to XCom
+    file_path = files_path[band_number - 1]
+    return [file_path]
 
 # DAG definition
 dag = DAG(S1GRD1SDV.id, 
@@ -129,24 +135,26 @@ zip_task = ZipInspector(task_id='zip_inspector',
                         get_inputs_from=download_task.task_id,
                         dag=dag)
 
-prepare_band_paths_task = PythonOperator(task_id="prepare_input",
-                              python_callable=prepare_band_paths,
-                              op_kwargs={
-                                  'get_inputs_from': zip_task.task_id
-                              },
-                              dag = dag)
-
 warp_tasks = []
 addo_tasks = []
 upload_tasks = []
+band_paths_tasks = []
 for i in range(1, 3):
+    band_paths = PythonOperator(task_id="get_band_paths_" + str(i),
+         python_callable=prepare_band_paths,
+         op_kwargs={
+             'get_inputs_from': zip_task.task_id
+         },
+         dag=dag)
+    band_paths_tasks.append(band_paths)
+
     warp = GDALWarpOperator(
         task_id='gdalwarp_' + str(i),
         target_srs=TARGET_SRS,
         tile_size=TILE_SIZE,
         overwrite=OVERWRITE,
         dstdir=S1GRD1SDV.process_dir,
-        get_inputs_from=prepare_band_paths_task.task_id,
+        get_inputs_from=band_paths.task_id,
         dag=dag
     )
     warp_tasks.append(warp)
@@ -170,7 +178,8 @@ for i in range(1, 3):
                                           dag=dag)
     upload_tasks.append(upload)
 
-    warp.set_upstream(prepare_band_paths_task)
+    band_paths.set_upstream(zip_task)
+    warp.set_upstream(band_paths)
     addo.set_upstream(warp)
     upload.set_upstream(addo)
 
@@ -201,7 +210,6 @@ publish_task = PythonOperator(task_id="publish_product_task",
                               },
                               dag = dag)
 
-prepare_band_paths_task.set_upstream(zip_task)
 download_task.set_upstream(search_task)
 archive_task.set_upstream(download_task)
 zip_task.set_upstream(download_task)
