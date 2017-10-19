@@ -19,6 +19,15 @@ log = logging.getLogger(__name__)
 
 
 class ZipInspector(BaseOperator):
+    """ ZipInspector takes list of downloaded products and goes through the downloaded product's zipfiles and searches for a defined extension (.tiff)  
+
+    Args:
+        extension_to_search (str): image extension to search for 
+        get_inputs_from (str): task_id used to fetch input files from XCom (as a list of products)
+
+    Returns:
+        dict: keys are zipfiles and values are lists containing virtual paths 
+    """
     @apply_defaults
     def __init__(self, extension_to_search,  get_inputs_from=None, *args, **kwargs):
         self.substring = extension_to_search
@@ -64,6 +73,18 @@ class ZipInspector(BaseOperator):
         return return_dict
 
 class RSYNCOperator(BaseOperator):
+    """ RSYNCOperator is using rsync command line to upload files remotely using ssh keys
+
+    Args:
+        host (str): hostname/ip of the remote machine
+        remote_usr (str): username of the remote account/machine
+        ssh_key_file (str): path to the ssh key file
+        remote_dir (str): remote directory to receive the uploaded files
+        get_inputs_from (str): task_id used to fetch input file(s) from XCom 
+
+    Returns:
+        list: list of paths for the uploaded/moved files  
+    """
 
     @apply_defaults
     def __init__(self, 
@@ -118,6 +139,18 @@ class RSYNCOperator(BaseOperator):
         return filenames_list
 
 class S1MetadataOperator(BaseOperator):
+    """ S1MetadataOperator is an abstract level for generating the S1 metadata files and adding it to product.zip later on. It calls another python_callable create_procuct_zip which calls S1 utils to generate meta-data files one by one
+
+    Args:
+        granules_paths (list): carrying paths to granules
+        granules_upload_dir (str): path to the upload directory
+        working_dir (str): path to the processing directory
+        get_inputs_from (str): task_ids used to fetch input files from XCom 
+
+    Returns:
+        list: list of output product.zip paths
+    """
+
     @apply_defaults
     def __init__(self, granules_paths, granules_upload_dir, working_dir, original_package_download_base_url, get_inputs_from=None, *args, **kwargs):
         self.granules_paths = granules_paths
@@ -162,6 +195,10 @@ class S1MetadataOperator(BaseOperator):
         uploaded_granules_paths = context['task_instance'].xcom_pull(task_ids=upload_task_ids, key=XCOM_RETURN_KEY)
         original_package_path = context['task_instance'].xcom_pull(task_ids=archive_product_task_id, key=XCOM_RETURN_KEY)
 
+        if downloaded is None or local_granules_paths is None or uploaded_granules_paths is None or original_package_path is None:
+            log.info("Values missing, Nothing to process.")
+            return
+
         safe_package_path = downloaded.keys()[0]
         safe_package_filename = os.path.basename(safe_package_path)
         product_id = downloaded[safe_package_path].get('title')
@@ -189,6 +226,16 @@ class S1MetadataOperator(BaseOperator):
         return zip_paths
 
 class MoveFilesOperator(BaseOperator):
+    """ MoveFilesOperator is moving files according to a filter to be applied on the file's names
+
+    Args:
+        src_dir (str): source directory to look for files inside
+        dst_dir (str): destination directory to send files to
+        filter (str): expression to filter the files accordingly
+
+    Returns:
+        True
+    """
     @apply_defaults
     def __init__(self, src_dir, dst_dir, filter, *args, **kwargs):
         super(MoveFilesOperator, self).__init__(*args, **kwargs)
@@ -200,6 +247,9 @@ class MoveFilesOperator(BaseOperator):
     def execute(self, context):
         log.info('\nsrc_dir={}\ndst_dir={}\nfilter={}'.format(self.src_dir, self.dst_dir, self.filter))
         filenames = fnmatch.filter(os.listdir(self.src_dir), self.filter)
+        if filenames is None or len(filenames) == 0:
+            log.info("No files to move.")
+            return
         for filename in filenames:
             filepath = os.path.join(self.src_dir, filename)
             if not os.path.exists(self.dst_dir):
@@ -208,6 +258,7 @@ class MoveFilesOperator(BaseOperator):
             dst_filename = os.path.join(self.dst_dir, os.path.basename(filename))
             log.info("Moving {} to {}".format(filepath, dst_filename))
             #os.rename(filepath, dst_filename)
+        return True
 
 class EVOODASPlugin(AirflowPlugin):
     name = "RSYNC_plugin"

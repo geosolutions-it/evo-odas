@@ -12,10 +12,19 @@ import shutil
 import xml.etree.ElementTree as ET
 from geoserver_plugin import generate_wfs_dict, generate_wcs_dict, generate_wms_dict
 
-''' This class will create a compressed, low resolution, square shaped thumbnail for the
-original granule. the current approach is generating a new folder that will contain all the metadata files if it wasn't created. if it was created, then Sentinel2ThumbnailOperator will delete it and create a new empty one and then append the created thumbnail to it. by this way, later operators can append to this directory per product.
-'''
+
 class Sentinel2ThumbnailOperator(BaseOperator):
+        """ This class creates a compressed, low resolution, square shaped thumbnail for the original granule. the current approach is generating a new folder that will contain all the metadata files if it wasn't created. if it was created, then Sentinel2ThumbnailOperator will delete it and create a new empty one and then append the created thumbnail to it. using this way, later operators can append to this directory per product.
+
+        Args:
+            thumb_size_x (str): x dimension for the thumbnail size
+            thumb_size_y (str): y dimension for the thumbnail size
+            input_product (str): product name in case the operator will process single product
+            output_dir (str): output directory for the generated thumbnail
+            get_inputs_from (str): task_id used to fetch downloaded files list from XCom
+        Returns:
+            list: list of created thumbnail's paths
+        """
 
         @apply_defaults
         def __init__(self, 
@@ -91,12 +100,30 @@ class Sentinel2ThumbnailOperator(BaseOperator):
                         except BaseException as e:
                             log.error("Unable to extract thumbnail from {}: {}".format(product, e))
             return thumbnail_paths
-            
-'''
-This class is creating the product.zip contents and passing the absolute path per every file so that the Sentinel2ProductZipOperator can generate the product.zip file.
-Also, this class is creating the .wld and .prj files which are required by Geoserver in order to be publish the granules successfully. 
-'''
+
+
 class Sentinel2MetadataOperator(BaseOperator):
+    """ This class creates the product.zip contents and pass the absolute path per every file so that the Sentinel2ProductZipOperator can generate the product.zip file. Also, it creates the .wld and .prj files which are required by Geoserver in order to be publish the granules successfully.
+
+    Args:
+        bands_res (dict): carrying the keys as the different resolutions of S2 and values carrying the associated bands
+        bands_dict (dict): carrying the band's names of S2
+        remote_dir (str): the remote repository path
+        GS_WORKSPACE (str): geoserver workspace to be used in OWSLinks.json
+        GS_FEATURETYPE (str): geoserver featuretype parameter to be used in OWSLinks.json
+        GS_LAYER (str): geoserver layer name to be used in OWSLinks.json
+        GS_WMS_WIDTH (int): wms width to be used in OWSLinks.json
+        GS_WMS_HEIGHT (int): wms height to be used in OWSLinks.json
+        GS_WMS_FORMAT (str): wms format to be used in OWSLinks.json
+        GS_WCS_SCALE_I (float): wcs I scale to be used in OWSLinks.json
+        GS_WCS_SCALE_J (float): wcs J scale to be used in OWSLinks.json
+        GS_WCS_FORMAT (str): wcs format to be used in OWSLinks.json
+        ORIGINAL_PACKAGE_DOWNLOAD_BASE_URL (str): carrying the base url of the downloaded original package
+        coverage_id (str): id contains the feature and layer to be used in OWSLinks.json
+        get_inputs_from (list): carrying ids of download and archive tasks
+    Returns:
+        list: list of directorie's paths for all the processed products
+    """
     @apply_defaults
     def __init__(self, 
         bands_res,
@@ -139,7 +166,9 @@ class Sentinel2MetadataOperator(BaseOperator):
         else:
             log.info("Getting inputs from: dhus_download_task" )
             self.downloaded_products = context['task_instance'].xcom_pull('dhus_download_task', key='downloaded_products')
-
+        if self.downloaded_products is None:
+            log.info("Nothing to process.")
+            return
         services= [{"wms":("GetCapabilities","GetMap")},{"wfs":("GetCapabilities","GetFeature")},{"wcs":("GetCapabilities","GetCoverage")}]
         for product in self.downloaded_products.keys():
             log.info("Processing: {}".format(product))
@@ -286,12 +315,18 @@ class Sentinel2MetadataOperator(BaseOperator):
         return self.custom_archived
 
 
-'''
-This class is receiving the meta data files paths from the Sentinel2MetadataOperator then creates the product.zip
-Later, this class will pass the path of the created product.zip to the next task to publish on Geoserver.
-'''
-class Sentinel2ProductZipOperator(BaseOperator):
 
+class Sentinel2ProductZipOperator(BaseOperator):
+    """ This class is receiving the meta data files paths from the Sentinel2MetadataOperator then creates the product.zip Later, this class will pass the path of the created product.zip to the next task to publish on Geoserver.
+
+    Args:
+        target_dir (str): path of the downloaded product 
+        generated_files (list): paths of files that are currently supported (product.json, granules.json, thumbnail.jpeg, owsLinks.json)
+        placeholders (list): paths of files that are currently not supported (metadata.xml, description.html)
+        get_inputs_from (str): task id used to fetch input products from xcom
+    Returns:
+        list: list of zip files paths for all the processed products
+    """
     @apply_defaults
     def __init__(
         self,

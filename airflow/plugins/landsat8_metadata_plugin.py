@@ -234,11 +234,22 @@ def prepare_granules(bounding_box, granule_paths):
 class Landsat8MTLReaderOperator(BaseOperator):
     """
     This class will read the .MTL file which is attached with the
-    scene/product directory.The returned value from "final_metadata_dict"
+    scene/product directory. The returned value from "final_metadata_dict"
     will be a python dictionary holding all the available keys from the
     .MTL file. this dictionary will be saved as json file to be added later
     to the product.zip. Also, the execute method will "xcom.push" the
     absolute path of the generated json file inside the context of the task
+
+    Args:
+        get_inputs_from (str): task_ids used to fetch input files from XCom
+        metadata_xml_path (str): metadata.xml template path to be copied (temporarily)
+        loc_base_dir (str): base directory path
+
+    Returns:
+        tuple contains
+        json_path (str): path of the generated product.json file
+        granules_path (str): path of the generated granules.json file
+        xml_template_path (str): path of the copied metadata.xml file
     """
 
     @apply_defaults
@@ -252,6 +263,9 @@ class Landsat8MTLReaderOperator(BaseOperator):
     def execute(self, context):
         # fetch MTL file path from XCom
         mtl_path = context["task_instance"].xcom_pull(self.get_inputs_from["metadata_task_id"])
+        if mtl_path is None:
+            log.info("Nothing to process.")
+            return
         # Uploaded granules paths from XCom
         upload_granules_task_ids = self.get_inputs_from["upload_task_ids"]
         granule_paths=[]
@@ -298,6 +312,14 @@ class Landsat8ThumbnailOperator(BaseOperator):
     """This class will create a compressed, low resolution, square shaped
     thumbnail for the original scene then return the absolute path of the
     generated thumbnail
+
+        Args:
+            thumb_size_x (str): x dimension for the thumbnail size
+            thumb_size_y (str): y dimension for the thumbnail size
+            get_inputs_from (str): task_id used to fetch downloaded file from XCom
+
+        Returns:
+            output_path (str): path of the created thumbnail
     """
 
     @apply_defaults
@@ -311,6 +333,9 @@ class Landsat8ThumbnailOperator(BaseOperator):
     def execute(self, context):
         downloaded_thumbnail = context["task_instance"].xcom_pull(
             self.get_inputs_from)
+        if downloaded_thumbnail is None:
+            log.info("Nothing to process.")
+            return
         log.info("downloaded_thumbnail: {}".format(downloaded_thumbnail))
         img = Image(downloaded_thumbnail)
         least_dim = min(int(img.columns()), int(img.rows()))
@@ -324,8 +349,15 @@ class Landsat8ThumbnailOperator(BaseOperator):
 
 
 class Landsat8ProductDescriptionOperator(BaseOperator):
-    """This class will create a .html description file by copying it from
-    its config path
+    """Landsat8ProductDescriptionOperator will create a .html description file by copying it from
+    its config path. (temporarily solution)
+
+        Args:
+            description_template (str): path to the template to be copied 
+            download_dir (str): path to the destination directory
+
+        Returns:
+            output_path (str): path of the copied description template
     """
     @apply_defaults
     def __init__(self, description_template, download_dir, *args, **kwargs):
@@ -335,14 +367,23 @@ class Landsat8ProductDescriptionOperator(BaseOperator):
         self.download_dir = download_dir
 
     def execute(self, context):
+        if self.download_dir is None or self.description_template is None:
+            log.info("Nothing to process.")
+            return
         output_path = os.path.join(self.download_dir, "description.html")
         shutil.copyfile(self.description_template, output_path)
         return output_path
 
 
 class Landsat8ProductZipFileOperator(BaseOperator):
-    """This class will create product.zip file utilizing from the previous
-    tasks
+    """This class will create product.zip file for landsat-8 scenes utilizing from the previous tasks
+
+        Args:
+            get_inputs_from (str): task_ids to get the generated metadata files
+            output_dir (str): path to the destination directory
+
+        Returns:
+            output_paths (list): paths of the created product.zip files
     """
 
     @apply_defaults
@@ -352,6 +393,9 @@ class Landsat8ProductZipFileOperator(BaseOperator):
         self.output_dir = output_dir
 
     def execute(self, context):
+        if self.get_inputs_from is None or self.output_dir is None:
+            log.info("Nothing to process.")
+            return
         paths_to_zip = []
         for input_provider in self.get_inputs_from:
             inputs = context["task_instance"].xcom_pull(input_provider)
@@ -369,6 +413,14 @@ class Landsat8ProductZipFileOperator(BaseOperator):
 
 
 class Landsat8GranuleJsonFileOperator(BaseOperator):
+    """Landsat8GranuleJsonFileOperator creates granule.json file for Landsat-8 scene/granule
+
+        Args:
+            location_prop (str): location property refers to the path of the granule on-disk to be added to the granule.json 
+
+        Returns:
+            True
+    """
 
     @apply_defaults
     def __init__(self, location_prop, *args, **kwargs):
