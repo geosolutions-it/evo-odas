@@ -20,6 +20,8 @@ collection_dir = os.path.join(config.base_dir, platformname)
 download_dir = os.path.join(collection_dir,"download")
 process_dir = os.path.join(collection_dir,"process")
 repository_dir = os.path.join(collection_dir,"repository")
+original_package_upload_dir = os.path.join(collection_dir,"upload")
+original_package_download_base_url = "http://cloudsdi.geo-solutions.it/data/landsa8/L8/"
 
 #
 # Search and Download

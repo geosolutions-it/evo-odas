@@ -17,9 +17,9 @@ platformname = 'Sentinel-1'
 collection_dir = os.path.join(config.base_dir, platformname, id)
 download_dir = os.path.join(collection_dir,"download")
 process_dir = os.path.join(collection_dir,"process")
-upload_dir = os.path.join(collection_dir,"upload")
 repository_dir = os.path.join(collection_dir,"repository")
-original_package_download_base_url = "http://cloudsdi.geo-solutions.it/data/sentinel/sentinel1/grd/EW_GRDM_1SDV/"
+original_package_upload_dir = os.path.join(collection_dir,"upload")
+original_package_download_base_url = "http://cloudsdi.geo-solutions.it/data/sentinel/sentinel1/grd/S1_GRD_1SDV/"
 
 #
 # DHUS specific
