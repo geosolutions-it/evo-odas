@@ -250,15 +250,27 @@ class Sentinel2MetadataOperator(BaseOperator):
                 json.dump(final_granules_dict, granules_outfile, indent=4)
             for service in services:
                     service_name, service_calls = service.items()[0]
-                    links.append({"offering": "http://www.opengis.net/spec/owc-atom/1.0/req/{}".format(service_name),
-                                  "method": "GET",
-                                  "code": "GetCapabilities",
-                                  "type": "application/xml",
-                                  "href": "${BASE_URL}"+"/{}/{}/ows?service={}&request=GetCapabilities&CQL_FILTER=eoParentIdentifier='{}'".format(
-                                        self.GS_WORKSPACE,
-                                        self.GS_LAYER,
-                                        service_name.upper(),
-                                        s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
+                    if service_name.lower() == "wfs":
+                        links.append(
+                            {"offering": "http://www.opengis.net/spec/owc-atom/1.0/req/{}".format(service_name),
+                             "method": "GET",
+                             "code": "GetCapabilities",
+                             "type": "application/xml",
+                             "href": "${BASE_URL}" + "/{}/{}/ows?service={}&request=GetCapabilities&CQL_FILTER=eoParentIdentifier='{}'".format(
+                                 self.GS_WORKSPACE,
+                                 self.GS_FEATURETYPE,
+                                 service_name.upper(),
+                                 s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
+                    else:
+                        links.append({"offering": "http://www.opengis.net/spec/owc-atom/1.0/req/{}".format(service_name),
+                                      "method": "GET",
+                                      "code": "GetCapabilities",
+                                      "type": "application/xml",
+                                      "href": "${BASE_URL}"+"/{}/{}/ows?service={}&request=GetCapabilities&CQL_FILTER=eoParentIdentifier='{}'".format(
+                                            self.GS_WORKSPACE,
+                                            self.GS_LAYER,
+                                            service_name.upper(),
+                                            s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
             
             #Here we generate the dictionaries of GetMap, GetFeature and GetCoverage operations from util dir
             links.append(generate_wfs_dict(s2_product, self.GS_WORKSPACE, self.GS_FEATURETYPE))
