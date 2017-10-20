@@ -186,6 +186,7 @@ def generate_dag(area, download_dir, default_args):
     upload_task_ids = (task.task_id for task in upload_tasks)
     generate_metadata = Landsat8MTLReaderOperator(
         task_id='generate_metadata',
+        original_package_download_base_url= LANDSAT8.original_package_download_base_url,
         get_inputs_from={
             "search_task_id"  : search_task.task_id,
             "metadata_task_id": download_metadata.task_id,

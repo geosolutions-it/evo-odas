@@ -6,6 +6,7 @@ import re
 import pprint
 import shutil
 import zipfile
+from urlparse import urljoin
 
 from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
@@ -253,10 +254,11 @@ class Landsat8MTLReaderOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, get_inputs_from, metadata_xml_path,
+    def __init__(self, get_inputs_from, metadata_xml_path, original_package_download_base_url,
                  *args, **kwargs):
         super(Landsat8MTLReaderOperator, self).__init__(*args, **kwargs)
         self.get_inputs_from = get_inputs_from
+        self.original_package_download_base_url = original_package_download_base_url
         self.metadata_xml_path = metadata_xml_path
 
     def execute(self, context):
@@ -270,8 +272,10 @@ class Landsat8MTLReaderOperator(BaseOperator):
         granule_paths=[]
         for tid in upload_granules_task_ids:
             granule_paths += context["task_instance"].xcom_pull(tid)
-        original_package_location = context["task_instance"].xcom_pull(self.get_inputs_from["upload_original_package_task_id"])
-        original_package_location = original_package_location [0]
+        original_package_paths = context["task_instance"].xcom_pull(self.get_inputs_from["upload_original_package_task_id"])
+        original_package_path = original_package_paths [0]
+        original_package_filename = os.path.basename(original_package_path)
+        original_package_location = urljoin(self.original_package_download_base_url, original_package_filename)
         # Get GDALInfo output from XCom
         gdalinfo_task_id = self.get_inputs_from["gdalinfo_task_id"]
         gdalinfo_dict = context["task_instance"].xcom_pull(gdalinfo_task_id)
