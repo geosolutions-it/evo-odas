@@ -132,13 +132,12 @@ def publish_product(geoserver_username, geoserver_password, geoserver_rest_endpo
                 data=d,
                 headers=h)
 
-            if r.status_code == 201:
+            if r.ok:
                 published_ids.append(r.text)
                 log.info("Successfully published product '{}' (HTTP {})".format(r.text,r.status_code))
-            elif r.status_code == 500:
-                log.warn("Error during publishing product '{}' (HTTP {}: {})".format(zip_file, r.status_code, r.text))
             else:
-                log.warn("Unknown response during publishing '{}' (HTTP {}: {})".format(zip_file, r.status_code, r.text))
+                log.warn("Error during publishing product '{}' (HTTP {}: {})".format(zip_file, r.status_code, r.text))
+		r.raise_for_status()
         return published_ids
     else:
         log.warn("No product.zip found.")
