@@ -1,21 +1,16 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from getpass import getuser
-import os
 
 from airflow import DAG
 from airflow.operators import DownloadSceneList
 from airflow.operators import ExtractSceneList
 from airflow.operators import UpdateSceneList
 
-from landsat8.secrets import postgresql_credentials
-
-# These ought to be moved to a more central place where other settings might
-# be stored
-DOWNLOAD_URL = 'http://landsat-pds.s3.amazonaws.com/c1/L8/scene_list.gz'
-DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "download")
+import config as CFG
+import config.landsat8 as LANDSAT8
 
 landsat8_scene_list = DAG(
-    'Landsat8_Scene_List',
+    LANDSAT8.id + '_Scene_List',
     description='DAG for downloading, extracting, and importing scene_list.gz '
                 'into postgres db',
     default_args={
@@ -28,11 +23,11 @@ landsat8_scene_list = DAG(
         "email_on_retry": False,
         "retries": 0,  # TODO: change back to 1
         "max_threads": 1,
-        "download_dir": DOWNLOAD_DIR,
-        "download_url": DOWNLOAD_URL,
+        "download_dir": LANDSAT8.download_dir,
+        "download_url": LANDSAT8.download_url,
     },
-    dagrun_timeout=timedelta(hours=1),
-    schedule_interval=timedelta(days=1),
+    dagrun_timeout=LANDSAT8.dagrun_timeout,
+    schedule_interval=LANDSAT8.dag_schedule_interval,
     catchup=False
 )
 
@@ -50,11 +45,11 @@ extract_scene_list = ExtractSceneList(
 
 update_scene_list_db = UpdateSceneList(
     task_id='update_scene_list',
-    pg_dbname=postgresql_credentials['dbname'],
-    pg_hostname=postgresql_credentials['hostname'],
-    pg_port=postgresql_credentials['port'],
-    pg_username=postgresql_credentials['username'],
-    pg_password=postgresql_credentials['password'],
+    pg_dbname=CFG.landsat8_postgresql_credentials['dbname'],
+    pg_hostname=CFG.landsat8_postgresql_credentials['hostname'],
+    pg_port=CFG.landsat8_postgresql_credentials['port'],
+    pg_username=CFG.landsat8_postgresql_credentials['username'],
+    pg_password=CFG.landsat8_postgresql_credentials['password'],
     dag=landsat8_scene_list
 )
 

@@ -14,7 +14,7 @@ catchup=False
 #
 # Collection
 #
-id = "Landsat8_"
+id = "Landsat8"
 platformname = 'Landsat-8'
 collection_dir = os.path.join(config.base_dir, platformname)
 download_dir = os.path.join(collection_dir,"download")
@@ -26,6 +26,9 @@ original_package_download_base_url = "http://cloudsdi.geo-solutions.it/data/land
 #
 # Search and Download
 #
+
+download_url = 'http://landsat-pds.s3.amazonaws.com/c1/L8/scene_list.gz'
+
 Landsat8Area = namedtuple("Landsat8Area", [
     "name",
     "path",
