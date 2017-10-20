@@ -21,7 +21,7 @@ GS_WMS_FORMAT=S1GRD1SDV.geoserver_oseo_wms_format
 
 # OWS links settings for WFS
 GS_WFS_WORKSPACE=S1GRD1SDV.geoserver_workspace
-GS_WFS_LAYER=S1GRD1SDV.geoserver_layer
+GS_WFS_LAYER=S1GRD1SDV.geoserver_featuretype
 GS_WFS_VERSION="2.0.0"
 GS_WFS_FORMAT="application/json"
 
