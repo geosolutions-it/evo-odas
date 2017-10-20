@@ -141,11 +141,11 @@ def prepare_metadata(metadata, bounding_box, crs, original_package_location):
         "geometry": {
             "type": "Polygon",
             "coordinates": [[
-                [bounding_box.ullat, bounding_box.ullon],
-                [bounding_box.lllat, bounding_box.lllon],
-                [bounding_box.lrlat, bounding_box.lrlon],
-                [bounding_box.urlat, bounding_box.urlon],
-                [bounding_box.ullat, bounding_box.ullon],
+                [bounding_box.ullon, bounding_box.ullat],
+                [bounding_box.lllon, bounding_box.lllat],
+                [bounding_box.lrlon, bounding_box.lrlat],
+                [bounding_box.urlon, bounding_box.urlat],
+                [bounding_box.ullon, bounding_box.ullat],
             ]],
         },
         "properties": {
