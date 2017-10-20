@@ -47,7 +47,7 @@ def generate_dag(area, download_dir, default_args):
     """
 
     dag = DAG(
-        LANDSAT8.id_prefix + "_{}".format(area.name),
+        LANDSAT8.id + "_{}".format(area.name),
         description="DAG for downloading, processing and ingesting {} AOI in Landsat8 data "
                     "from scene_list".format(area.name),
         default_args=default_args,

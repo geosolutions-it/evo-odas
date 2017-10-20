@@ -14,7 +14,7 @@ catchup=False
 #
 # Collection
 #
-id_prefix = "Landsat8_"
+id = "Landsat8_"
 platformname = 'Landsat-8'
 collection_dir = os.path.join(config.base_dir, platformname)
 download_dir = os.path.join(collection_dir,"download")
