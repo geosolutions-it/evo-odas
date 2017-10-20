@@ -39,7 +39,7 @@ print("GeoServer: {} @ {}".format(CFG.geoserver_username, CFG.geoserver_rest_url
 print("RSYNC: {} @ {} using {}".format(CFG.rsync_username, CFG.rsync_hostname, CFG.rsync_ssh_key))
 print("Date: {} / {}".format(S2MSIL1C.dhus_search_startdate, S2MSIL1C.dhus_search_enddate))
 print("Search: max={}, order_by={}, keywords={}".format(S2MSIL1C.dhus_filter_max, S2MSIL1C.dhus_search_orderby,S2MSIL1C.dhus_search_keywords))
-print("Paths:\n  collection_dir={}\n  download_dir={}\n  process_dir={}\n  upload_dir={}\n  repository_dir={}".format(S2MSIL1C.collection_dir, S2MSIL1C.download_dir, S2MSIL1C.process_dir, S2MSIL1C.upload_dir, S2MSIL1C.repository_dir))
+print("Paths:\n  collection_dir={}\n  download_dir={}\n  process_dir={}\n  original_package_upload_dir={}\n  repository_dir={}".format(S2MSIL1C.collection_dir, S2MSIL1C.download_dir, S2MSIL1C.process_dir, S2MSIL1C.original_package_upload_dir, S2MSIL1C.repository_dir))
 print("Collection:\n  workspace={}\n  layer={}".format(S2MSIL1C.geoserver_workspace, S2MSIL1C.geoserver_layer))
 print("Product:\n  bands_res={}\n  bands_dict={}".format(S2MSIL1C.bands_res, S2MSIL1C.bands_dict))
 print("#######################")
@@ -85,11 +85,11 @@ download_task = DHUSDownloadOperator(task_id='download_product_task',
                                      dag=dag)
 
 # Rsync Archive Task
-archive_task = RSYNCOperator(task_id="archive_product_task", 
+archive_task = RSYNCOperator(task_id="upload_original_package",
                              host = CFG.rsync_hostname, 
                              remote_usr = CFG.rsync_username,
                              ssh_key_file = CFG.rsync_ssh_key, 
-                             remote_dir = S2MSIL1C.repository_dir,
+                             remote_dir = S2MSIL1C.original_package_upload_dir,
                              get_inputs_from=download_task.task_id,
                              dag=dag)
 

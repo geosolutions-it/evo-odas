@@ -52,7 +52,7 @@ print("GeoServer: {} @ {}".format(CFG.geoserver_username, CFG.geoserver_rest_url
 print("RSYNC: {} @ {} using {}".format(CFG.rsync_username, CFG.rsync_hostname, CFG.rsync_ssh_key))
 print("Date: {} / {}".format(S1GRD1SDV.dhus_search_startdate, S1GRD1SDV.dhus_search_enddate))
 print("Search: max={}, order_by={}, keywords={}".format(S1GRD1SDV.dhus_filter_max, S1GRD1SDV.dhus_search_orderby,S1GRD1SDV.dhus_search_keywords))
-print("Paths:\n  collection_dir={}\n  download_dir={}\n  process_dir={}\n  upload_dir={}\n  repository_dir={}".format(S1GRD1SDV.collection_dir, S1GRD1SDV.download_dir, S1GRD1SDV.process_dir, S1GRD1SDV.upload_dir, S1GRD1SDV.repository_dir))
+print("Paths:\n  collection_dir={}\n  download_dir={}\n  process_dir={}\n  original_package_upload_dir={}\n  repository_dir={}".format(S1GRD1SDV.collection_dir, S1GRD1SDV.download_dir, S1GRD1SDV.process_dir, S1GRD1SDV.original_package_upload_dir, S1GRD1SDV.repository_dir))
 print("Collection:\n  workspace={}\n  layer={}".format(S1GRD1SDV.geoserver_workspace, S1GRD1SDV.geoserver_layer))
 print("#######################")
 
@@ -121,11 +121,11 @@ download_task = DHUSDownloadOperator(task_id='download_product_task',
                                      dag=dag)
 
 # Rsync Archive Task for Products
-archive_task = RSYNCOperator(task_id="archive_product_task",
+archive_task = RSYNCOperator(task_id="upload_original_package",
                              host = CFG.rsync_hostname,
                              remote_usr = CFG.rsync_username,
                              ssh_key_file = CFG.rsync_ssh_key,
-                             remote_dir = S1GRD1SDV.repository_dir,
+                             remote_dir = S1GRD1SDV.original_package_upload_dir,
                              get_inputs_from=download_task.task_id,
                              dag=dag)
 

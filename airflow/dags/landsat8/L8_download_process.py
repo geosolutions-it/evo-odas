@@ -175,7 +175,7 @@ def generate_dag(area, download_dir, default_args):
         host=CFG.rsync_hostname,
         remote_usr=CFG.rsync_username,
         ssh_key_file=CFG.rsync_ssh_key,
-        remote_dir=LANDSAT8.repository_dir,
+        remote_dir=LANDSAT8.original_package_upload_dir,
         get_inputs_from=create_original_package_task.task_id,
         dag=dag)
 
