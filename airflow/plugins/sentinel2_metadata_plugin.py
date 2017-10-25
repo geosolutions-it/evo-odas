@@ -5,12 +5,38 @@ from airflow.models import XCOM_RETURN_KEY
 import logging
 import os
 import s2reader
+from collections import namedtuple
 log = logging.getLogger(__name__)
 from pgmagick import Image, Blob
 import 	zipfile, json
 import shutil
+import pprint
 import xml.etree.ElementTree as ET
+from geoserver_plugin import create_owslinks_dict
 from geoserver_plugin import generate_wfs_dict, generate_wcs_dict, generate_wms_dict
+from geoserver_plugin import generate_wfs_cap_dict, generate_wms_cap_dict, generate_wcs_cap_dict
+
+
+def get_bbox_from_granules_coordinates(granule_coordinates):
+    long_max, long_min = (
+    float(granule_coordinates[0][3][0].split(",")[0]), float(granule_coordinates[0][1][0].split(",")[0]))
+    lat_max, lat_min = (
+    float(granule_coordinates[0][3][0].split(",")[1]), float(granule_coordinates[0][1][0].split(",")[1]))
+    long_max = str(long_max).strip()
+    long_min = str(long_min).strip()
+    lat_max = str(lat_max).strip()
+    lat_min = str(lat_min).strip()
+
+    bbox = {
+        "long_min": long_min,
+        "long_max": long_max,
+        "lat_min": lat_min,
+        "lat_max": lat_max,
+
+    }
+
+    return bbox
+
 
 
 class Sentinel2ThumbnailOperator(BaseOperator):
@@ -109,16 +135,20 @@ class Sentinel2MetadataOperator(BaseOperator):
         bands_res (dict): carrying the keys as the different resolutions of S2 and values carrying the associated bands
         bands_dict (dict): carrying the band's names of S2
         remote_dir (str): the remote repository path
-        GS_WORKSPACE (str): geoserver workspace to be used in OWSLinks.json
-        GS_FEATURETYPE (str): geoserver featuretype parameter to be used in OWSLinks.json
-        GS_LAYER (str): geoserver layer name to be used in OWSLinks.json
-        GS_WMS_WIDTH (int): wms width to be used in OWSLinks.json
-        GS_WMS_HEIGHT (int): wms height to be used in OWSLinks.json
-        GS_WMS_FORMAT (str): wms format to be used in OWSLinks.json
-        GS_WCS_SCALE_I (float): wcs I scale to be used in OWSLinks.json
-        GS_WCS_SCALE_J (float): wcs J scale to be used in OWSLinks.json
-        GS_WCS_FORMAT (str): wcs format to be used in OWSLinks.json
-        ORIGINAL_PACKAGE_DOWNLOAD_BASE_URL (str): carrying the base url of the downloaded original package
+        gs_workspace (str): GeoServer workspace to be used in OWSLinks.json
+        gs_wfs_featuretype (str): GeoServer featuretype parameter to be used in OWSLinks.json
+        gs_wfs_format (str): output format for WFS GetFeature request
+        gs_wfs_version (str): WFS protocol version to use
+        gs_wms_layer (str): GeoServer layer name to be used in OWSLinks.json
+        gs_wms_width (int): WMS width to be used in OWSLinks.json
+        gs_wms_height (int): WMS height to be used in OWSLinks.json
+        gs_wms_format (str): WMS format to be used in OWSLinks.json
+        gs_wms_version (str): WMS protocol version to use
+        gs_wcs_scale_i (float): WCS I scale to be used in OWSLinks.json
+        gs_wcs_scale_j (float): WCS J scale to be used in OWSLinks.json
+        gs_wcs_format (str): WCS format to be used in OWSLinks.json
+        gs_wcs_version (str): WCS protocol version to use
+        original_package_download_base_url (str): carrying the base url of the downloaded original package
         coverage_id (str): id contains the feature and layer to be used in OWSLinks.json
         get_inputs_from (list): carrying ids of download and archive tasks
     Returns:
@@ -129,34 +159,42 @@ class Sentinel2MetadataOperator(BaseOperator):
         bands_res,
         bands_dict,
         remote_dir,
-        GS_WORKSPACE,
-        GS_FEATURETYPE,
-        GS_LAYER,
-        GS_WMS_WIDTH,
-        GS_WMS_HEIGHT,
-        GS_WMS_FORMAT,
-        GS_WCS_SCALE_I,
-        GS_WCS_SCALE_J,
-        GS_WCS_FORMAT,
-        ORIGINAL_PACKAGE_DOWNLOAD_BASE_URL,
-        coverage_id,
+        gs_workspace,
+        gs_wfs_featuretype,
+        gs_wfs_format,
+        gs_wfs_version,
+        gs_wms_layer,
+        gs_wms_width,
+        gs_wms_height,
+        gs_wms_format,
+        gs_wms_version,
+        gs_wcs_scale_i,
+        gs_wcs_scale_j,
+        gs_wcs_format,
+        gs_wcs_version,
+        gs_wcs_coverage_id,
+        original_package_download_base_url,
         get_inputs_from=None,
         *args, **kwargs):
             self.bands_res = bands_res
             self.remote_dir = remote_dir
             self.bands_dict = bands_dict
-            self.GS_WORKSPACE = GS_WORKSPACE
-            self.GS_LAYER = GS_LAYER
-            self.GS_FEATURETYPE = GS_FEATURETYPE
-            self.GS_WMS_WIDTH = GS_WMS_WIDTH
-            self.GS_WMS_HEIGHT = GS_WMS_HEIGHT
-            self.GS_WMS_FORMAT = GS_WMS_FORMAT
-            self.GS_WCS_SCALE_I = GS_WCS_SCALE_I
-            self.GS_WCS_SCALE_J = GS_WCS_SCALE_J
-            self.GS_WCS_FORMAT = GS_WCS_FORMAT            
-            self.coverage_id = coverage_id
+            self.gs_workspace = gs_workspace
+            self.gs_wms_layer = gs_wms_layer
+            self.gs_wfs_featuretype = gs_wfs_featuretype
+            self.gs_wfs_format = gs_wfs_format
+            self.gs_wfs_version = gs_wfs_version
+            self.gs_wms_width = gs_wms_width
+            self.gs_wms_height = gs_wms_height
+            self.gs_wms_format = gs_wms_format
+            self.gs_wms_version = gs_wms_version
+            self.gs_wcs_scale_i = gs_wcs_scale_i
+            self.gs_wcs_scale_j = gs_wcs_scale_j
+            self.gs_wcs_format = gs_wcs_format
+            self.gs_wcs_version = gs_wcs_version
+            self.gs_wcs_coverage_id = gs_wcs_coverage_id
             self.get_inputs_from = get_inputs_from
-            self.ORIGINAL_PACKAGE_DOWNLOAD_BASE_URL = ORIGINAL_PACKAGE_DOWNLOAD_BASE_URL
+            self.original_package_download_base_url = original_package_download_base_url
             super(Sentinel2MetadataOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
@@ -189,7 +227,7 @@ class Sentinel2MetadataOperator(BaseOperator):
                     "eop:identifier": s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0],
                     "timeStart": s2_product.product_start_time,
                     "timeEnd": s2_product.product_stop_time,
-                    "originalPackageLocation": os.path.join(self.ORIGINAL_PACKAGE_DOWNLOAD_BASE_URL , os.path.basename(self.archived_products.pop(0))), 
+                    "originalPackageLocation": os.path.join(self.original_package_download_base_url , os.path.basename(self.archived_products.pop(0))),
                     "thumbnailURL": None,
                     "quicklookURL": None,
                     "eop:parentIdentifier": "SENTINEL2",
@@ -248,37 +286,34 @@ class Sentinel2MetadataOperator(BaseOperator):
                 json.dump(final_metadata_dict, product_outfile,indent=4)                
             with open(product.strip(".zip")+'/granules.json', 'w') as granules_outfile:
                 json.dump(final_granules_dict, granules_outfile, indent=4)
-            for service in services:
-                    service_name, service_calls = service.items()[0]
-                    if service_name.lower() == "wfs":
-                        links.append(
-                            {"offering": "http://www.opengis.net/spec/owc-atom/1.0/req/{}".format(service_name),
-                             "method": "GET",
-                             "code": "GetCapabilities",
-                             "type": "application/xml",
-                             "href": "${BASE_URL}" + "/{}/{}/ows?service={}&request=GetCapabilities&CQL_FILTER=eoParentIdentifier='{}'".format(
-                                 self.GS_WORKSPACE,
-                                 self.GS_FEATURETYPE,
-                                 service_name.upper(),
-                                 s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
-                    else:
-                        links.append({"offering": "http://www.opengis.net/spec/owc-atom/1.0/req/{}".format(service_name),
-                                      "method": "GET",
-                                      "code": "GetCapabilities",
-                                      "type": "application/xml",
-                                      "href": "${BASE_URL}"+"/{}/{}/ows?service={}&request=GetCapabilities&CQL_FILTER=eoParentIdentifier='{}'".format(
-                                            self.GS_WORKSPACE,
-                                            self.GS_LAYER,
-                                            service_name.upper(),
-                                            s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])})
-            
-            #Here we generate the dictionaries of GetMap, GetFeature and GetCoverage operations from util dir
-            links.append(generate_wfs_dict(s2_product, self.GS_WORKSPACE, self.GS_FEATURETYPE))
-            links.append(generate_wcs_dict(granule_coordinates, self.GS_WORKSPACE, s2_product, self.coverage_id, self.GS_WCS_FORMAT, self.GS_WCS_SCALE_I, self.GS_WCS_SCALE_J))
-            links.append(generate_wms_dict(self.GS_WORKSPACE, self.GS_LAYER, granule_coordinates, self.GS_WMS_WIDTH, self.GS_WMS_HEIGHT, self.GS_WMS_FORMAT, s2_product))
-            final_owslinks_dict = {"links":links}
+
+            product_identifier = s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0]
+            bbox = get_bbox_from_granules_coordinates(granule_coordinates)
+
+            ows_links_dict = create_owslinks_dict(
+                product_identifier=product_identifier,
+                granule_bbox=bbox,
+                gs_workspace=self.gs_workspace,
+                gs_wms_layer=self.gs_wms_layer,
+                gs_wms_width=self.gs_wms_width,
+                gs_wms_height=self.gs_wms_height,
+                gs_wms_format=self.gs_wms_format,
+                gs_wms_version=self.gs_wms_version,
+                gs_wfs_featuretype=self.gs_wfs_featuretype,
+                gs_wfs_format=self.gs_wfs_format,
+                gs_wfs_version=self.gs_wfs_version,
+                gs_wcs_layer=self.gs_wcs_layer,
+                gs_wcs_coverage_id=self.gs_wcs_coverage_id,
+                gs_wcs_scale_i=self.gs_wcs_scale_i,
+                gs_wcs_scale_j=self.gs_wcs_scale_j,
+                gs_wcs_format=self.gs_wcs_format,
+                gs_wcs_version=self.gs_wcs_version,
+            )
+
+            log.info("ows links: {}".format(pprint.pformat(ows_links_dict)))
+
             with open(product.strip(".zip")+'/owsLinks.json', 'w') as owslinks_outfile:
-                  json.dump(final_owslinks_dict, owslinks_outfile, indent=4)
+                  json.dump(ows_links_dict, owslinks_outfile, indent=4)
 
         self.custom_archived = []
         for archive_line in self.downloaded_products.keys():

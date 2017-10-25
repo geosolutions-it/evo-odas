@@ -15,6 +15,8 @@ from airflow.models import XCOM_RETURN_KEY
 from pgmagick import Image
 from osgeo import osr
 
+from geoserver_plugin import create_owslinks_dict
+
 log = logging.getLogger(__name__)
 pp = pprint.PrettyPrinter(indent=2)
 
@@ -231,7 +233,6 @@ def prepare_granules(bounding_box, granule_paths):
 
     return granules_dict
 
-
 class Landsat8MTLReaderOperator(BaseOperator):
     """
     This class will read the .MTL file which is attached with the
@@ -244,7 +245,19 @@ class Landsat8MTLReaderOperator(BaseOperator):
     Args:
         get_inputs_from (str): task_ids used to fetch input files from XCom
         metadata_xml_path (str): metadata.xml template path to be copied (temporarily)
-        loc_base_dir (str): base directory path
+        gs_workspace (str): GeoServer workspace to be used in OWSLinks.json
+        gs_wfs_featuretype (str): GeoServer featuretype parameter to be used in OWSLinks.json
+        gs_wfs_format (str): output format for WFS GetFeature request
+        gs_wfs_version (str): WFS protocol version to use
+        gs_wms_layer (str): GeoServer layer name to be used in OWSLinks.json
+        gs_wms_width (int): WMS width to be used in OWSLinks.json
+        gs_wms_height (int): WMS height to be used in OWSLinks.json
+        gs_wms_format (str): WMS format to be used in OWSLinks.json
+        gs_wms_version (str): WMS protocol version to use
+        gs_wcs_scale_i (float): WCS I scale to be used in OWSLinks.json
+        gs_wcs_scale_j (float): WCS J scale to be used in OWSLinks.json
+        gs_wcs_format (str): WCS format to be used in OWSLinks.json
+        gs_wcs_version (str): WCS protocol version to use
 
     Returns:
         tuple contains
@@ -254,12 +267,44 @@ class Landsat8MTLReaderOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, get_inputs_from, metadata_xml_path, original_package_download_base_url,
+    def __init__(self, get_inputs_from,
+                 metadata_xml_path,
+                 original_package_download_base_url,
+                 gs_workspace,
+                 gs_wms_layer,
+                 gs_wms_width,
+                 gs_wms_height,
+                 gs_wms_format,
+                 gs_wms_version,
+                 gs_wfs_featuretype,
+                 gs_wfs_format,
+                 gs_wfs_version,
+                 gs_wcs_layer,
+                 gs_wcs_scale_i,
+                 gs_wcs_scale_j,
+                 gs_wcs_coverage_id,
+                 gs_wcs_format,
+                 gs_wcs_version,
                  *args, **kwargs):
         super(Landsat8MTLReaderOperator, self).__init__(*args, **kwargs)
         self.get_inputs_from = get_inputs_from
         self.original_package_download_base_url = original_package_download_base_url
         self.metadata_xml_path = metadata_xml_path
+        self.gs_workspace = gs_workspace
+        self.gs_wms_layer = gs_wms_layer
+        self.gs_wms_width = gs_wms_width
+        self.gs_wms_height = gs_wms_height
+        self.gs_wms_format = gs_wms_format
+        self.gs_wms_version = gs_wms_version
+        self.gs_wfs_featuretype = gs_wfs_featuretype
+        self.gs_wfs_format = gs_wfs_format
+        self.gs_wfs_version = gs_wfs_version
+        self.gs_wcs_layer = gs_wcs_layer
+        self.gs_wcs_scale_i = gs_wcs_scale_i
+        self.gs_wcs_scale_j = gs_wcs_scale_j
+        self.gs_wcs_coverage_id = gs_wcs_coverage_id
+        self.gs_wcs_format = gs_wcs_format
+        self.gs_wcs_version = gs_wcs_version
 
     def execute(self, context):
         # fetch MTL file path from XCom
@@ -276,6 +321,7 @@ class Landsat8MTLReaderOperator(BaseOperator):
         original_package_path = original_package_paths [0]
         original_package_filename = os.path.basename(original_package_path)
         original_package_location = urljoin(self.original_package_download_base_url, original_package_filename)
+        product_id = os.path.splitext(original_package_filename)[0]
         # Get GDALInfo output from XCom
         gdalinfo_task_id = self.get_inputs_from["gdalinfo_task_id"]
         gdalinfo_dict = context["task_instance"].xcom_pull(gdalinfo_task_id)
@@ -294,20 +340,58 @@ class Landsat8MTLReaderOperator(BaseOperator):
         with open(mtl_path) as mtl_fh:
             parsed_metadata = parse_mtl_data(mtl_fh)
         bounding_box = get_bounding_box(parsed_metadata["PRODUCT_METADATA"])
+        bbox_dict={
+            "long_min": min(bounding_box.lllon, bounding_box.lrlon),
+            "lat_min" : min(bounding_box.lllat, bounding_box.lrlat),
+            "long_max": min(bounding_box.ullon, bounding_box.urlon),
+            "lat_max" : min(bounding_box.ullat, bounding_box.urlat),
+        }
         log.debug("BoundingBox: {}".format(pprint.pformat(bounding_box)))
+
         prepared_metadata = prepare_metadata(parsed_metadata, bounding_box, crs, original_package_location)
         product_directory, mtl_name = os.path.split(mtl_path)
         granules_dict = prepare_granules(bounding_box, granule_paths)
         log.debug("Granules Dict: {}".format(pprint.pformat(granules_dict)))
-        json_path = os.path.join(product_directory, "product.json")
+
+        ows_links_dict = create_owslinks_dict(
+            product_identifier = product_id,
+            granule_bbox= bbox_dict,
+            gs_workspace=self.gs_workspace,
+            gs_wms_layer=self.gs_wms_layer,
+            gs_wms_width=self.gs_wms_width,
+            gs_wms_height=self.gs_wms_height,
+            gs_wms_format=self.gs_wms_format,
+            gs_wms_version=self.gs_wms_version,
+            gs_wfs_featuretype=self.gs_wfs_featuretype,
+            gs_wfs_format=self.gs_wfs_format,
+            gs_wfs_version=self.gs_wfs_version,
+            gs_wcs_layer=self.gs_wcs_layer,
+            gs_wcs_coverage_id=self.gs_wcs_coverage_id,
+            gs_wcs_scale_i=self.gs_wcs_scale_i,
+            gs_wcs_scale_j=self.gs_wcs_scale_j,
+            gs_wcs_format = self.gs_wcs_format,
+            gs_wcs_version=self.gs_wcs_version,
+        )
+        log.info("ows links: {}".format(pprint.pformat(ows_links_dict)))
+
+        product_json_path = os.path.join(product_directory, "product.json")
+        ows_links_path = os.path.join(product_directory, "owsLinks.json")
         granules_path = os.path.join(product_directory, "granules.json")
         xml_template_path = os.path.join(product_directory, "metadata.xml")
-        with open(json_path, 'w') as out_json_fh:
-            json.dump(prepared_metadata, out_json_fh)
+
+        # Create product.json
+        with open(product_json_path, 'w') as out_json_fh:
+            json.dump(prepared_metadata, out_json_fh, indent=4)
+        # Create granules.json
         with open(granules_path, 'w') as out_granules_fh:
-            json.dump(granules_dict, out_granules_fh)
+            json.dump(granules_dict, out_granules_fh, indent=4)
+        # Create owsLinks.json
+        with open(ows_links_path, 'w') as out_ows_links_fh:
+            json.dump(ows_links_dict, out_ows_links_fh, indent=4)
+        # Create metadata.xml
         shutil.copyfile(self.metadata_xml_path, xml_template_path)
-        return json_path, granules_path, xml_template_path
+
+        return product_json_path, granules_path, ows_links_path, xml_template_path
 
 
 class Landsat8ThumbnailOperator(BaseOperator):

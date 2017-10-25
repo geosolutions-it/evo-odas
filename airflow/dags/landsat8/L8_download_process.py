@@ -21,6 +21,7 @@ from landsat8_metadata_plugin import create_original_package
 import config as CFG
 import config.landsat8 as LANDSAT8
 
+
 # These ought to be moved to a more central place where other settings might
 # be stored
 PROJECT_ROOT = os.path.dirname(
@@ -186,7 +187,22 @@ def generate_dag(area, download_dir, default_args):
     upload_task_ids = (task.task_id for task in upload_tasks)
     generate_metadata = Landsat8MTLReaderOperator(
         task_id='generate_metadata',
-        original_package_download_base_url= LANDSAT8.original_package_download_base_url,
+        original_package_download_base_url = LANDSAT8.original_package_download_base_url,
+        gs_workspace = LANDSAT8.geoserver_workspace,
+        gs_wms_layer = LANDSAT8.geoserver_layer,
+        gs_wms_width = LANDSAT8.geoserver_oseo_wms_width,
+        gs_wms_height = LANDSAT8.geoserver_oseo_wms_height,
+        gs_wms_format = LANDSAT8.geoserver_oseo_wms_format,
+        gs_wms_version = LANDSAT8.geoserver_oseo_wms_version,
+        gs_wfs_featuretype = LANDSAT8.geoserver_featuretype,
+        gs_wfs_format = LANDSAT8.geoserver_oseo_wfs_format,
+        gs_wfs_version=LANDSAT8.geoserver_oseo_wfs_version,
+        gs_wcs_layer = LANDSAT8.geoserver_layer,
+        gs_wcs_scale_i = LANDSAT8.geoserver_oseo_wcs_scale_i,
+        gs_wcs_scale_j = LANDSAT8.geoserver_oseo_wcs_scale_j,
+        gs_wcs_format = LANDSAT8.geoserver_oseo_wcs_format,
+        gs_wcs_version = LANDSAT8.geoserver_oseo_wcs_version,
+        gs_wcs_coverage_id = LANDSAT8.geoserver_layer,
         get_inputs_from={
             "search_task_id"  : search_task.task_id,
             "metadata_task_id": download_metadata.task_id,

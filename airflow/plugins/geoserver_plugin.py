@@ -35,65 +35,192 @@ class GSAddMosaicGranule(BaseOperator):
         log.info(granule)
         self.catalog.harvest_externalgranule(granule, store)
 
-def generate_wfs_dict(s2_product, GS_WORKSPACE, GS_FEATURETYPE):
+def generate_wfs_cap_dict(product_identifier, gs_workspace, gs_featuretype, gs_wfs_version):
+    return {
+        "offering": "http://www.opengis.net/spec/owc-atom/1.0/req/wfs",
+        "method": "GET",
+        "code": "GetCapabilities",
+        "type": "application/xml",
+        "href": "${BASE_URL}"+"/{}/{}/ows?service=WFS&request=GetCapabilities&version={}&CQL_FILTER=eoIdentifier='{}'".format(
+            gs_workspace,
+            gs_featuretype,
+            gs_wfs_version,
+            product_identifier
+        )
+    }
+
+def generate_wms_cap_dict(product_identifier, gs_workspace, gs_layer, gs_wms_version):
+    return {
+        "offering": "http://www.opengis.net/spec/owc-atom/1.0/req/wms",
+        "method": "GET",
+        "code": "GetCapabilities",
+        "type": "application/xml",
+        "href": "${BASE_URL}" + "/{}/{}/ows?service=WMS&request={}&version={}&CQL_FILTER=eoIdentifier='{}'".format(
+            gs_workspace,
+            gs_layer,
+            "GetCapabilities",
+            gs_wms_version,
+            product_identifier
+        )
+    }
+
+def generate_wcs_cap_dict(product_identifier, gs_workspace, gs_layer, gs_wcs_version):
+    return {
+            "offering": "http://www.opengis.net/spec/owc-atom/1.0/req/wcs",
+            "method": "GET",
+            "code": "GetCapabilities",
+            "type": "application/xml",
+            "href": "${BASE_URL}"+"/{}/{}/ows?service=WCS&request=GetCapabilities&version={}&CQL_FILTER=eoParentIdentifier='{}'".format(
+                gs_workspace,
+                gs_layer,
+                gs_wcs_version,
+                product_identifier
+                )
+            }
+
+
+def generate_wfs_dict(product_identifier, gs_workspace, gs_featuretype, gs_wfs_format, gs_wfs_version):
     return {
         "offering": "http://www.opengis.net/spec/owc-atom/1.0/req/wfs",
         "method": "GET",
         "code": "GetFeature",
         "type": "application/json",
-        "href": r"${BASE_URL}"+"/{}/ows?service=wfs&version=2.0.0&request=GetFeature&typeNames={}:{}&CQL_FILTER=eoIdentifier='{}'&outputFormat=application/json".format(
-            GS_WORKSPACE,
-            GS_WORKSPACE,
-            GS_FEATURETYPE, 
-            s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])
+        "href": r"${BASE_URL}"+"/{}/ows?service=wfs&version={}&request=GetFeature&typeNames={}:{}&CQL_FILTER=eoIdentifier='{}'&outputFormat={}".format(
+            gs_workspace,
+            gs_wfs_version,
+            gs_workspace,
+            gs_featuretype,
+            product_identifier,
+            gs_wfs_format
+        )
     }
 
-def generate_wms_dict(GS_WORKSPACE, GS_LAYER, granule_coordinates, GS_WMS_WIDTH, GS_WMS_HEIGHT, GS_WMS_FORMAT, s2_product):
-    #bbox = str(granule_coordinates[0][3][0])+","+str(granule_coordinates[0][1][0])
-    long_max, long_min = (float(granule_coordinates[0][3][0].split(",")[0]),float(granule_coordinates[0][1][0].split(",")[0]))
-    lat_max, lat_min = (float(granule_coordinates[0][3][0].split(",")[1]),float(granule_coordinates[0][1][0].split(",")[1]))
+def generate_wms_dict(product_identifier, gs_workspace, gs_layer, bbox, gs_wms_width, gs_wms_height, gs_wms_format, gs_wms_version):
     return {
         "offering": "http://www.opengis.net/spec/owc-atom/1.0/req/wms",
         "method": "GET",
         "code": "GetMap",
-        "type": GS_WMS_FORMAT,
-        #"href": r"${BASE_URL}"+"/{}/{}/ows?service=wms&request=GetMap&version=1.3.0&LAYERS={}&BBOX={},{},{},{}&WIDTH={}&HEIGHT={}&FORMAT={}&CQL_FILTER=eoIdentifier='{}'".format(
-        "href": r"${BASE_URL}"+"/{}/{}/ows?service=wms&request=GetMap&version=1.3.0&LAYERS={}&BBOX={},{},{},{}&WIDTH={}&HEIGHT={}&FORMAT={}".format(
-            GS_WORKSPACE, 
-            GS_LAYER, 
-            GS_LAYER, 
-            str(long_min).strip(), 
-            str(lat_min).strip(), 
-            str(long_max).strip(), 
-            str(lat_max).strip(), 
-            GS_WMS_WIDTH, 
-            GS_WMS_HEIGHT, 
-            GS_WMS_FORMAT)
-#            s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])
+        "type": gs_wms_format,
+        "href": r"${BASE_URL}"+"/{}/{}/ows?service=wms&request=GetMap&version={}&LAYERS={}&BBOX={},{},{},{}&WIDTH={}&HEIGHT={}&FORMAT={}&CQL_FILTER=eoIdentifier='{}'".format(
+            gs_workspace,
+            gs_layer,
+            gs_wms_version,
+            gs_layer,
+            bbox["long_min"],
+            bbox["lat_min"],
+            bbox["long_max"],
+            bbox["lat_max"],
+            gs_wms_width,
+            gs_wms_height,
+            gs_wms_format,
+            product_identifier
+        )
     }
 
-def generate_wcs_dict(granule_coordinates, GS_WORKSPACE, s2_product, coverage_id, GS_WCS_FORMAT, GS_WCS_SCALE_I, GS_WCS_SCALE_J):
-    long_max, long_min = (float(granule_coordinates[0][3][0].split(",")[0]),float(granule_coordinates[0][1][0].split(",")[0]))
-    lat_max, lat_min = (float(granule_coordinates[0][3][0].split(",")[1]),float(granule_coordinates[0][1][0].split(",")[1]))
+def generate_wcs_dict(product_identifier, bbox, gs_workspace, coverage_id, gs_wcs_scale_i, gs_wcs_scale_j, gs_wcs_format, gs_wcs_version):
     return {
         "offering": "http://www.opengis.net/spec/owc-atom/1.0/req/wcs",
         "method": "GET",
         "code": "GetCoverage",
-        "type": GS_WCS_FORMAT,
-        #"href": r"${BASE_URL}"+"/{}/{}/wcs?service=WCS&version=2.0.1&coverageId={}&request=GetCoverage&format={}&subset=http://www.opengis.net/def/axis/OGC/0/Long({},{})&subset=http://www.opengis.net/def/axis/OGC/0/Lat({},{})&scaleaxes=i({}),j({})&CQL_FILTER=eoIdentifier='{}'".format(
-        "href": r"${BASE_URL}"+"/{}/{}/wcs?service=WCS&version=2.0.1&coverageId={}&request=GetCoverage&format={}&subset=http://www.opengis.net/def/axis/OGC/0/Long({},{})&subset=http://www.opengis.net/def/axis/OGC/0/Lat({},{})&scaleaxes=i({}),j({})".format(
-            GS_WORKSPACE, 
+        "type": gs_wcs_format,
+        "href": r"${BASE_URL}"+"/{}/{}/wcs?service=WCS&version={}&coverageId={}&request=GetCoverage&format={}&subset=http://www.opengis.net/def/axis/OGC/0/Long({},{})&subset=http://www.opengis.net/def/axis/OGC/0/Lat({},{})&scaleaxes=i({}),j({})&CQL_FILTER=eoIdentifier='{}'".format(
+            gs_workspace,
             coverage_id,
-            str(GS_WORKSPACE+"__"+coverage_id),
-            GS_WCS_FORMAT,
-            str(long_min).strip(),
-            str(long_max).strip(),
-            str(lat_min).strip(),
-            str(lat_max).strip(),
-            GS_WCS_SCALE_I,
-            GS_WCS_SCALE_J)
-            #s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0])
+            gs_wcs_version,
+            str(gs_workspace+"__"+coverage_id),
+            gs_wcs_format,
+            bbox["long_min"],
+            bbox["lat_min"],
+            bbox["long_max"],
+            bbox["lat_max"],
+            gs_wcs_scale_i,
+            gs_wcs_scale_j,
+            product_identifier
+        )
     }
+
+def create_owslinks_dict(
+        product_identifier,
+        granule_bbox,
+        gs_workspace,
+        gs_wms_layer,
+        gs_wms_width,
+        gs_wms_height,
+        gs_wms_format,
+        gs_wms_version,
+        gs_wfs_featuretype,
+        gs_wfs_format,
+        gs_wfs_version,
+        gs_wcs_layer,
+        gs_wcs_coverage_id,
+        gs_wcs_scale_i,
+        gs_wcs_scale_j,
+        gs_wcs_format,
+        gs_wcs_version,
+    ):
+    dict = {}
+    links = []
+
+    links.append(
+        generate_wms_cap_dict(
+            product_identifier=product_identifier,
+            gs_workspace=gs_workspace,
+            gs_layer=gs_wms_layer,
+            gs_wms_version=gs_wms_version
+        )
+    )
+    links.append(
+        generate_wfs_cap_dict(
+            product_identifier=product_identifier,
+            gs_workspace=gs_workspace,
+            gs_featuretype=gs_wfs_featuretype,
+            gs_wfs_version=gs_wfs_version
+        )
+    )
+    links.append(
+        generate_wcs_cap_dict(
+            product_identifier=product_identifier,
+            gs_workspace=gs_workspace,
+            gs_layer=gs_wcs_layer,
+            gs_wcs_version=gs_wcs_version
+        )
+    )
+    links.append(
+        generate_wms_dict(
+            product_identifier=product_identifier,
+            gs_workspace=gs_workspace,
+            gs_layer=gs_wms_layer,
+            bbox=granule_bbox,
+            gs_wms_width=gs_wms_width,
+            gs_wms_height=gs_wms_height,
+            gs_wms_format=gs_wms_format,
+            gs_wms_version=gs_wms_version
+        )
+    )
+    links.append(
+        generate_wfs_dict(
+            product_identifier=product_identifier,
+            gs_workspace=gs_workspace,
+            gs_featuretype=gs_wfs_featuretype,
+            gs_wfs_format=gs_wfs_format,
+            gs_wfs_version = gs_wfs_version
+        )
+    )
+    links.append(
+        generate_wcs_dict(
+            product_identifier=product_identifier,
+            bbox=granule_bbox,
+            gs_workspace=gs_workspace,
+            coverage_id=gs_wcs_coverage_id,
+            gs_wcs_format=gs_wcs_format,
+            gs_wcs_scale_i=gs_wcs_scale_i,
+            gs_wcs_scale_j=gs_wcs_scale_j,
+            gs_wcs_version=gs_wcs_version
+        )
+    )
+    dict["links"] = links
+
+    return dict
 
 def publish_product(geoserver_username, geoserver_password, geoserver_rest_endpoint, get_inputs_from, *args, **kwargs):
     # Pull Zip path from XCom

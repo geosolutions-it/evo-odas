@@ -55,12 +55,16 @@ geoserver_featuretype = "product"
 geoserver_layer = "LANDSAT8"
 geoserver_coverage = "LANDSAT8"
 geoserver_oseo_collection="LANDSAT8"
+geoserver_oseo_wfs_format = "application/json"
+geoserver_oseo_wfs_version = "2.0.0"
 geoserver_oseo_wms_width = 512
 geoserver_oseo_wms_height = 512
 geoserver_oseo_wms_format = "image/jpeg"
+geoserver_oseo_wms_version = "1.3.0"
 geoserver_oseo_wcs_scale_i = 0.01
 geoserver_oseo_wcs_scale_j = 0.01
-geoserver_oseo_wcs_format = "image/jp2"
+geoserver_oseo_wcs_format = "geotiff"
+geoserver_oseo_wcs_version = "2.0.1"
 
 #
 # Product
