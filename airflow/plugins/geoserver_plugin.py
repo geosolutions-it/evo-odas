@@ -238,14 +238,14 @@ def publish_product(geoserver_username, geoserver_password, geoserver_rest_endpo
 
     zip_files=list()
     if get_inputs_from != None:
-        log.info("Getting inputs from: " +get_inputs_from)
+        log.info("Getting inputs from: " + get_inputs_from)
         zip_files = task_instance.xcom_pull(task_ids=get_inputs_from, key=XCOM_RETURN_KEY)
     else:
         log.info("Getting inputs from: product_zip_task" )
         zip_files = task_instance.xcom_pull('product_zip_task', key='product_zip_paths')
     
     log.info("zip_file_paths: {}".format(zip_files))
-    if zip_files is not None:
+    if zip_files:
         published_ids=list()
         for zip_file in zip_files:
             # POST product.zip
@@ -268,6 +268,7 @@ def publish_product(geoserver_username, geoserver_password, geoserver_rest_endpo
         return published_ids
     else:
         log.warn("No product.zip found.")
+        return list()
 
 class GDALPlugin(AirflowPlugin):
     name = "GeoServer_plugin"
