@@ -4,7 +4,6 @@ import os
 import logging
 import pprint
 import json
-from urlparse import urljoin
 from shutil import copyfile
 from zipfile import ZipFile
 from S1Reader import S1GDALReader
@@ -256,7 +255,7 @@ def create_procuct_zip(sentinel1_product_zip_path, granules_paths, granules_uplo
     (search_params, other_metadata, product_abstract_metadata) = collect_sentinel1_metadata(s1metadata)
 
     # Add OriginalPackage Location
-    search_params['properties']['originalPackageLocation'] = urljoin(original_package_download_base_url, safe_package_filename)
+    search_params['properties']['originalPackageLocation'] = original_package_download_base_url + safe_package_filename
 
     log.info(pprint.pformat(search_params))
     log.info(pprint.pformat(other_metadata))
