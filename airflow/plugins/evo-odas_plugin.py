@@ -191,13 +191,24 @@ class S1MetadataOperator(BaseOperator):
 
         local_granules_paths = []
         for tid in addo_task_ids:
-            local_granules_paths += context['task_instance'].xcom_pull(task_ids=tid, key=XCOM_RETURN_KEY)
+            local_granules_path = context['task_instance'].xcom_pull(task_ids=tid, key=XCOM_RETURN_KEY)
+            if local_granules_path:
+                local_granules_paths +=  local_granules_path
         uploaded_granules_paths = context['task_instance'].xcom_pull(task_ids=upload_task_ids, key=XCOM_RETURN_KEY)
         original_package_path = context['task_instance'].xcom_pull(task_ids=archive_product_task_id, key=XCOM_RETURN_KEY)
 
-        if downloaded is None or local_granules_paths is None or uploaded_granules_paths is None or original_package_path is None:
-            log.info("Values missing, Nothing to process.")
-            return
+        if not downloaded:
+            log.info("No products from Download task, Nothing to do.")
+            return list()
+        if not local_granules_paths:
+            log.info("No local granules from processing, Nothing to do.")
+            return list()
+        if not uploaded_granules_paths:
+            log.info("No uploaded granules from upload task, Nothing to do.")
+            return list()
+        if not original_package_path:
+            log.info("No original package path from original package upload task, Nothing to do.")
+            return list()
 
         safe_package_path = downloaded.keys()[0]
         safe_package_filename = os.path.basename(safe_package_path)
