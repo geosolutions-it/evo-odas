@@ -54,15 +54,14 @@ class Landsat8SearchOperator(BaseOperator):
         )
         cursor = connection.cursor()
         data = (self.cloud_coverage, self.area.path, self.area.row, self.startdate, self.enddate)
-        query = "SELECT * FROM scene_list WHERE cloudCover < %s AND path = %s AND row = %s AND acquisitiondate BETWEEN '%s' AND '%s'"%(data)
+        query = "SELECT productid, entityid, download_url FROM scene_list WHERE cloudCover < %s AND path = %s AND row = %s AND acquisitiondate BETWEEN '%s' AND '%s'"%(data)
         #kindly note that table name and sql keywords cannot be parametrized (e.g: using %s) so we had to use .format to order by 
         query += " ORDER BY {} {} LIMIT {} ;".format(self.order_by, self.order_type, self.filter_max)
         cursor.execute(query)
         log.info(cursor.mogrify(query, data))
         #product_id, entity_id, download_url = cursor.fetchone()
         search_results = cursor.fetchall()
-        for item in search_results:
-             print item[2]
+
         if search_results is None:
             log.error("Could not find any product for the {} area".format(self.area))
             return
@@ -99,28 +98,28 @@ class Landsat8DownloadOperator(BaseOperator):
         if task_inputs is None or len(task_inputs) == 0:
             log.info("Nothing to process.")
             return
-        product_id, entity_id, download_url = task_inputs
-        target_dir = os.path.join(self.download_dir, entity_id)
-        try:
-            os.makedirs(target_dir)
-        except OSError as exc:
-            if exc.errno == 17:  # directory already exists
+        for scene in task_inputs:
+            product_id, entity_id, download_url = scene
+            target_dir = os.path.join(self.download_dir, entity_id)
+            try:
+               os.makedirs(target_dir)
+            except OSError as exc:
+               if exc.errno == 17:  # directory already exists
                 pass
-        url = download_url.replace(
-            "index.html", "{}_{}".format(product_id, self.url_fragment))
-        target_path = os.path.join(
-            target_dir,
-            "{}_{}".format(product_id, self.url_fragment)
-        )
-        try:
-            urllib.urlretrieve(url, target_path)
-        except Exception:
-            log.exception(
-                msg="Error downloading {}".format(self.url_fragment))
-            raise
-        else:
-            return target_path
-
+            url = download_url.replace(
+               "index.html", "{}_{}".format(product_id, self.url_fragment))
+            target_path = os.path.join(
+               target_dir,
+               "{}_{}".format(product_id, self.url_fragment)
+            )
+            try:
+                urllib.urlretrieve(url, target_path)
+            except Exception:
+               log.exception(
+               msg="Error downloading {}".format(self.url_fragment))
+               raise
+            else:
+               return target_path
 
 class SearchDownloadDaraaPlugin(AirflowPlugin):
     name = "search_download_daraa_plugin"
