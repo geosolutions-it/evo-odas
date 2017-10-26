@@ -36,6 +36,18 @@ Landsat8Area = namedtuple("Landsat8Area", [
     "bands"
 ])
 
+# please change the number of days to increase/decrease the time interval for searching
+startdate = datetime.today() - timedelta(days=100)
+enddate = datetime.now()
+filter_max = 5
+
+ascending = "ASC"
+descending = "DESC"
+
+# please use acquisitiondate or cloudCover to order by 
+order_by = "acquisitiondate"
+# please use ascending or descending for ordering type
+order_type = ascending
 
 AREAS = [
     Landsat8Area(name="daraa", path=174, row=37, bands=range(1, 12)),
