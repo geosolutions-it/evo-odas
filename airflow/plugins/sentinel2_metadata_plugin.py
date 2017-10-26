@@ -12,7 +12,8 @@ import shutil
 import pprint
 import xml.etree.ElementTree as ET
 from geoserver_plugin import create_owslinks_dict
-
+from geoserver_plugin import generate_wfs_dict, generate_wcs_dict, generate_wms_dict
+from geoserver_plugin import generate_wfs_cap_dict, generate_wms_cap_dict, generate_wcs_cap_dict
 
 
 def get_bbox_from_granules_coordinates(granule_coordinates):
@@ -300,7 +301,6 @@ class Sentinel2MetadataOperator(BaseOperator):
                 gs_wfs_featuretype=self.gs_wfs_featuretype,
                 gs_wfs_format=self.gs_wfs_format,
                 gs_wfs_version=self.gs_wfs_version,
-                gs_wcs_layer=self.gs_wcs_layer,
                 gs_wcs_coverage_id=self.gs_wcs_coverage_id,
                 gs_wcs_scale_i=self.gs_wcs_scale_i,
                 gs_wcs_scale_j=self.gs_wcs_scale_j,

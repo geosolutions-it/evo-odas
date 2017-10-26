@@ -197,7 +197,6 @@ def generate_dag(area, download_dir, default_args):
         gs_wfs_featuretype = LANDSAT8.geoserver_featuretype,
         gs_wfs_format = LANDSAT8.geoserver_oseo_wfs_format,
         gs_wfs_version=LANDSAT8.geoserver_oseo_wfs_version,
-        gs_wcs_layer = LANDSAT8.geoserver_layer,
         gs_wcs_scale_i = LANDSAT8.geoserver_oseo_wcs_scale_i,
         gs_wcs_scale_j = LANDSAT8.geoserver_oseo_wcs_scale_j,
         gs_wcs_format = LANDSAT8.geoserver_oseo_wcs_format,

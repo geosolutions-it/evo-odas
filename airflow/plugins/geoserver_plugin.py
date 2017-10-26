@@ -64,7 +64,7 @@ def generate_wms_cap_dict(product_identifier, gs_workspace, gs_layer, gs_wms_ver
         )
     }
 
-def generate_wcs_cap_dict(product_identifier, gs_workspace, gs_layer, gs_wcs_version):
+def generate_wcs_cap_dict(product_identifier, gs_workspace, coverage_id, gs_wcs_version):
     return {
             "offering": "http://www.opengis.net/spec/owc-atom/1.0/req/wcs",
             "method": "GET",
@@ -72,7 +72,7 @@ def generate_wcs_cap_dict(product_identifier, gs_workspace, gs_layer, gs_wcs_ver
             "type": "application/xml",
             "href": "${BASE_URL}"+"/{}/{}/ows?service=WCS&request=GetCapabilities&version={}&CQL_FILTER=eoParentIdentifier='{}'".format(
                 gs_workspace,
-                gs_layer,
+                str(gs_workspace + "__" + coverage_id),
                 gs_wcs_version,
                 product_identifier
                 )
@@ -130,8 +130,8 @@ def generate_wcs_dict(product_identifier, bbox, gs_workspace, coverage_id, gs_wc
             str(gs_workspace+"__"+coverage_id),
             gs_wcs_format,
             bbox["long_min"],
-            bbox["lat_min"],
             bbox["long_max"],
+            bbox["lat_min"],
             bbox["lat_max"],
             gs_wcs_scale_i,
             gs_wcs_scale_j,
@@ -151,7 +151,6 @@ def create_owslinks_dict(
         gs_wfs_featuretype,
         gs_wfs_format,
         gs_wfs_version,
-        gs_wcs_layer,
         gs_wcs_coverage_id,
         gs_wcs_scale_i,
         gs_wcs_scale_j,
@@ -181,7 +180,7 @@ def create_owslinks_dict(
         generate_wcs_cap_dict(
             product_identifier=product_identifier,
             gs_workspace=gs_workspace,
-            gs_layer=gs_wcs_layer,
+            coverage_id=gs_wcs_coverage_id,
             gs_wcs_version=gs_wcs_version
         )
     )

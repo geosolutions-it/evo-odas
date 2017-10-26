@@ -279,7 +279,6 @@ class Landsat8MTLReaderOperator(BaseOperator):
                  gs_wfs_featuretype,
                  gs_wfs_format,
                  gs_wfs_version,
-                 gs_wcs_layer,
                  gs_wcs_scale_i,
                  gs_wcs_scale_j,
                  gs_wcs_coverage_id,
@@ -299,7 +298,6 @@ class Landsat8MTLReaderOperator(BaseOperator):
         self.gs_wfs_featuretype = gs_wfs_featuretype
         self.gs_wfs_format = gs_wfs_format
         self.gs_wfs_version = gs_wfs_version
-        self.gs_wcs_layer = gs_wcs_layer
         self.gs_wcs_scale_i = gs_wcs_scale_i
         self.gs_wcs_scale_j = gs_wcs_scale_j
         self.gs_wcs_coverage_id = gs_wcs_coverage_id
@@ -365,7 +363,6 @@ class Landsat8MTLReaderOperator(BaseOperator):
             gs_wfs_featuretype=self.gs_wfs_featuretype,
             gs_wfs_format=self.gs_wfs_format,
             gs_wfs_version=self.gs_wfs_version,
-            gs_wcs_layer=self.gs_wcs_layer,
             gs_wcs_coverage_id=self.gs_wcs_coverage_id,
             gs_wcs_scale_i=self.gs_wcs_scale_i,
             gs_wcs_scale_j=self.gs_wcs_scale_j,
