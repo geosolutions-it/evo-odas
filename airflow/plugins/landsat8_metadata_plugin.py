@@ -64,8 +64,8 @@ def create_original_package(get_inputs_from=None, files_list=None, out_dir=None,
     task_instance = kwargs['ti']
     if get_inputs_from != None:
         log.info("Getting inputs from: " + pprint.pformat(get_inputs_from))
-        # Product ID from Search Task
-        product_id = task_instance.xcom_pull(task_ids=get_inputs_from['search_task_id'], key=XCOM_RETURN_KEY)
+        # Searched products from Search Task (list of tuples)
+        searched_prods = task_instance.xcom_pull(task_ids=get_inputs_from['search_task_id'], key=XCOM_RETURN_KEY)
         # Band TIFFs from download task
         files_list = task_instance.xcom_pull(task_ids=get_inputs_from['download_task_ids'], key=XCOM_RETURN_KEY)
 
@@ -78,8 +78,11 @@ def create_original_package(get_inputs_from=None, files_list=None, out_dir=None,
     m = re.match(r'(.*)_B.+\..+', filename)
     product_id = m.groups()[0]
     '''
+    product_ids = list(tup[0] for tup in searched_prods)
 
-    zipfile_path = os.path.join(out_dir, product_id[0] + '.zip')
+    # ONLY HANDLE 1 PRODUCT AT A TIME
+    product_id = product_ids[0]
+    zipfile_path = os.path.join(out_dir, product_id + '.zip')
     with zipfile.ZipFile(zipfile_path, 'w') as myzip:
         for file in files_list:
             myzip.write(file, os.path.basename(file))
