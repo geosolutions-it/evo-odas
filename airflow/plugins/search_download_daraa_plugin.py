@@ -54,14 +54,76 @@ class Landsat8SearchOperator(BaseOperator):
         )
         cursor = connection.cursor()
         data = (self.cloud_coverage, self.area.path, self.area.row, self.startdate, self.enddate)
-        query = "SELECT productid, entityid, download_url FROM scene_list WHERE cloudCover < %s AND path = %s AND row = %s AND acquisitiondate BETWEEN '%s' AND '%s'"%(data)
+        query = "SELECT productid, entityid, download_url FROM scene_list "
+        self.condition_counter = 0
+        self.conditions_list = []
+        if self.cloud_coverage or self.area.path or self.area.row or self.startdate or self.enddate:
+            where_stmt = " WHERE "
+
+        if self.cloud_coverage:
+            self.condition_counter+=1
+            cloud_condition =  " cloudCover < %s "%(self.cloud_coverage)
+            self.conditions_list.append(cloud_condition)
+        else:
+            cloud_condition = ''
+
+        if self.area.path:
+            self.condition_counter+=1
+            path_condition =  " path = %s "%(self.area.path)
+            self.conditions_list.append(path_condition)
+        else:
+            path_condition = ''
+
+        if self.area.row:
+            self.condition_counter+=1
+            row_condition =  " row = %s "%(self.area.row)
+            self.conditions_list.append(row_condition)
+        else:
+            row_condition = ''
+
+        if self.startdate and self.enddate:
+            self.condition_counter+=1
+            startenddate_condition =  " acquisitiondate BETWEEN '%s' AND '%s' "%(self.startdate,self.enddate)
+            self.conditions_list.append(startenddate_condition)
+        else:
+            startenddate_condition = ''
+
+        if self.startdate and not self.enddate:
+            self.condition_counter+=1
+            startdate_condition =  " acquisitiondate > '%s' "%(self.startdate)
+            self.conditions_list.append(startdate_condition)
+        else:
+            startdate_condition = ''
+
+        if self.enddate and not self.startdate:
+            self.condition_counter+=1
+            enddate_condition =  " acquisitiondate < '%s' "%(self.enddate)
+            self.conditions_list.append(enddate_condition)
+        else:
+            enddate_condition = ''
+
+        conditions = ''
+        self.condition_counter-=1
+        #adding where stmt in case there was condition(s)
+        if self.condition_counter >0:
+            query +=where_stmt
+        #adding AND operator after every condition
+        while self.condition_counter>0:
+            cond = self.conditions_list.pop()
+            self.condition_counter -=1
+            if self.condition_counter>0:
+                conditions+=cond + " AND "
+            else:
+                #if reached to the last condition, don't add AND 
+                conditions+=cond
+        #adding the accumulated conditions to the statement
+        query +=conditions
         #kindly note that table name and sql keywords cannot be parametrized (e.g: using %s) so we had to use .format to order by 
-        query += " ORDER BY {} {} LIMIT {} ;".format(self.order_by, self.order_type, self.filter_max)
+        query += " ORDER BY {} {} LIMIT {} ".format(self.order_by, self.order_type, self.filter_max)
+
         cursor.execute(query)
-        log.info(cursor.mogrify(query, data))
         #product_id, entity_id, download_url = cursor.fetchone()
         search_results = cursor.fetchall()
-
         if search_results is None:
             log.error("Could not find any product for the {} area".format(self.area))
             return
