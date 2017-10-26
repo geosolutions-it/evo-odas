@@ -19,16 +19,26 @@ class Landsat8SearchOperator(BaseOperator):
             area (tuple): Named tuple instance contains name, path, row and bands info
             cloud_coverage (float): allowed cloud coverage percentage
             db_credentials (dict): carrying postgres connection string info
+            startdate (str): date to start searching for scenes (acquisitiondate)
+            enddate (str): end of date range/interval for searching scenes (acquisitiondate)
+            filter_max (int): number to limit search results
+            order_by (str): the column to use for ordering the returned results
+            order_type (str): descending or ascending ordering
 
         Returns:
             tuple contains:
             product_id, entity_id, download_url
     """
     @apply_defaults
-    def __init__(self, area, cloud_coverage, db_credentials, *args, **kwargs):
+    def __init__(self, area, cloud_coverage, startdate, enddate, filter_max, order_by, order_type, db_credentials, *args, **kwargs):
         super(Landsat8SearchOperator, self).__init__(*args, **kwargs)
         self.area = area
         self.cloud_coverage = cloud_coverage
+        self.startdate = startdate
+        self.enddate = enddate
+        self.filter_max = filter_max
+        self.order_by = order_by
+        self.order_type = order_type
         self.db_credentials = dict(db_credentials)
 
     def execute(self, context):
@@ -43,24 +53,25 @@ class Landsat8SearchOperator(BaseOperator):
             port=self.db_credentials["port"],
         )
         cursor = connection.cursor()
-        query = (
-            "SELECT productId, entityId, download_url "
-            "FROM scene_list "
-            "WHERE cloudCover < %s AND path = %s AND row = %s "
-            "ORDER BY acquisitionDate DESC "
-            "LIMIT 1;"
-        )
-        data = (self.cloud_coverage, self.area.path, self.area.row)
-        cursor.execute(query, data)
-        product_id, entity_id, download_url = cursor.fetchone()
-        if product_id is None or entity_id is None or download_url is None:
+        data = (self.cloud_coverage, self.area.path, self.area.row, self.startdate, self.enddate)
+        query = "SELECT * FROM scene_list WHERE cloudCover < %s AND path = %s AND row = %s AND acquisitiondate BETWEEN '%s' AND '%s'"%(data)
+        #kindly note that table name and sql keywords cannot be parametrized (e.g: using %s) so we had to use .format to order by 
+        query += " ORDER BY {} {} LIMIT {} ;".format(self.order_by, self.order_type, self.filter_max)
+        cursor.execute(query)
+        log.info(cursor.mogrify(query, data))
+        #product_id, entity_id, download_url = cursor.fetchone()
+        search_results = cursor.fetchall()
+        for item in search_results:
+             print item[2]
+        if search_results is None:
             log.error("Could not find any product for the {} area".format(self.area))
             return
         else:
-            log.info(
-                "Found {} product with {} scene id, available for download "
-                "through {} ".format(product_id, entity_id, download_url))
-            return (product_id, entity_id, download_url)
+            for record in search_results:
+               log.info(
+                   "Found {} product with {} scene id, available for download "
+                   "through {} ".format(record[0], record[1], record[2]))
+            return search_results
 
 class Landsat8DownloadOperator(BaseOperator):
     """Landsat8DownloadOperator downloads scenes/granules which were found using Landsat8SearchOperator.

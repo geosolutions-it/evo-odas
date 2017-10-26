@@ -63,6 +63,11 @@ def generate_dag(area, download_dir, default_args):
         task_id='search_{}'.format(area.name),
         area=area,
         cloud_coverage=LANDSAT8.cloud_coverage,
+        startdate = LANDSAT8.startdate,
+        enddate = LANDSAT8.enddate,
+        filter_max =LANDSAT8.filter_max,
+        order_by =LANDSAT8.order_by,
+        order_type =LANDSAT8.order_type,
         db_credentials= CFG.landsat8_postgresql_credentials,
         dag=dag
     )
