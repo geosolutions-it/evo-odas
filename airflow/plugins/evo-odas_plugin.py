@@ -1,6 +1,7 @@
 import logging
 import pprint
 import os
+import sys
 import six
 import fnmatch
 from airflow.operators import BashOperator
@@ -10,10 +11,16 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 from airflow.models import XCOM_RETURN_KEY
 
+try:
+    from osgeo import gdal
+except:
+    sys.exit('ERROR: cannot find GDAL/OGR modules, install gdal with python bindings')
+
 from zipfile import ZipFile
 import config.xcom_keys as xk
 #from config import xcom_keys as xk
 from sentinel1.utils.ssat1_metadata import create_procuct_zip
+from geoserver_plugin import create_owslinks_dict
 
 log = logging.getLogger(__name__)
 
@@ -138,6 +145,65 @@ class RSYNCOperator(BaseOperator):
         log.info("Uploaded files: {}".format(pprint.pformat(files_list)))
         return filenames_list
 
+def get_bbox_from_granule(granule_path):
+    datastore = gdal.Open(granule_path)
+    ulx, xres, xskew, uly, yskew, yres = datastore.GetGeoTransform()
+    lrx = ulx + (datastore.RasterXSize * xres)
+    lry = uly + (datastore.RasterYSize * yres)
+    llx, lly = (ulx, lry)
+    urx, ury = (lrx, uly)
+    return [ [ulx,uly], [llx,lly], [lrx,lry], [urx,ury], [ulx,uly] ]
+
+def collect_granules_metadata(granules_paths, granules_upload_dir, bands_dict):
+    # create granules.json
+    granules_dict = {
+        "type": "FeatureCollection",
+        "features": []
+    }
+    log.info("Collecting granules metadata. Number of granules to process: {}".format(len(granules_paths)))
+    for granule in granules_paths:
+        granule_name = os.path.basename(granule)
+        location = os.path.join(granules_upload_dir, granule_name)
+        feature = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": None
+            },
+            "properties": {
+                "location": location,
+                "band"    : bands_dict[granule_name.split("-")[3]]
+            }
+        }
+        datastore = gdal.Open(granule)
+        metadata_dict = datastore.GetMetadata()
+        log.info(pprint.pformat(metadata_dict))
+
+        # list of list of lists
+        coordinates = []
+        bbox_polygon = get_bbox_from_granule(granule)
+        log.info("bbox_str: " + pprint.pformat(bbox_polygon))
+        coordinates.append(bbox_polygon)
+        feature['geometry']['coordinates'] = coordinates
+        log.info("COORDINATES: " + pprint.pformat(coordinates))
+        granules_dict['features'].append(feature)
+
+        lat_lower_left, lat_upper_right = (bbox_polygon[1][1], bbox_polygon[3][1])
+        long_lower_left, long_upper_right = (bbox_polygon[1][0], bbox_polygon[3][0])
+        long_min = min(long_lower_left, long_upper_right)
+        long_max = max(long_lower_left, long_upper_right)
+        lat_min = min(lat_lower_left, lat_upper_right)
+        lat_max = max(lat_lower_left, lat_upper_right)
+        bbox = {
+            "long_min": long_min,
+            "long_max": long_max,
+            "lat_min": lat_min,
+            "lat_max": lat_max,
+
+        }
+    return (granules_dict, bbox)
+
+
 class S1MetadataOperator(BaseOperator):
     """ S1MetadataOperator is an abstract level for generating the S1 metadata files and adding it to product.zip later on. It calls another python_callable create_procuct_zip which calls S1 utils to generate meta-data files one by one
 
@@ -152,11 +218,48 @@ class S1MetadataOperator(BaseOperator):
     """
 
     @apply_defaults
-    def __init__(self, granules_paths, granules_upload_dir, working_dir, original_package_download_base_url, get_inputs_from=None, *args, **kwargs):
+    def __init__(self,
+                 granules_paths,
+                 granules_upload_dir,
+                 working_dir,
+                 bands_dict,
+                 original_package_download_base_url,
+                 gs_workspace,
+                 gs_wms_layer,
+                 gs_wms_width,
+                 gs_wms_height,
+                 gs_wms_format,
+                 gs_wms_version,
+                 gs_wfs_featuretype,
+                 gs_wfs_format,
+                 gs_wfs_version,
+                 gs_wcs_coverage_id,
+                 gs_wcs_scale_i,
+                 gs_wcs_scale_j,
+                 gs_wcs_format,
+                 gs_wcs_version,
+                 get_inputs_from=None,
+                 *args, **kwargs):
         self.granules_paths = granules_paths
         self.granules_upload_dir = granules_upload_dir
         self.working_dir = working_dir
+        self.bands_dict = bands_dict
+        self.gs_workspace = gs_workspace
+        self.gs_wms_layer = gs_wms_layer
+        self.gs_wms_width = gs_wms_width
+        self.gs_wms_height = gs_wms_height
+        self.gs_wms_format = gs_wms_format
+        self.gs_wms_version = gs_wms_version
+        self.gs_wfs_featuretype = gs_wfs_featuretype
+        self.gs_wfs_format = gs_wfs_format
+        self.gs_wfs_version = gs_wfs_version
+        self.gs_wcs_coverage_id = gs_wcs_coverage_id
+        self.gs_wcs_scale_i = gs_wcs_scale_i
+        self.gs_wcs_scale_j = gs_wcs_scale_j
+        self.gs_wcs_format = gs_wcs_format
+        self.gs_wcs_version = gs_wcs_version
         self.original_package_download_base_url = original_package_download_base_url
+
         self.get_inputs_from = get_inputs_from
 
         super(S1MetadataOperator, self).__init__(*args, **kwargs)
@@ -164,21 +267,6 @@ class S1MetadataOperator(BaseOperator):
     def execute(self, context):
         log.info('--------------------S1Metadata_PLUGIN running------------')
         task_instance = context['task_instance']
-
-        log.info("""
-            granules_paths: {}
-            granules_upload_dir: {}
-            working_dir: {}
-            original_package_download_base_url: {}
-            get_inputs_from: {}
-            """.format(
-            self.granules_paths,
-            self.granules_upload_dir,
-            self.working_dir,
-            self.original_package_download_base_url,
-            self.get_inputs_from,
-            )
-        )
 
         log.info("Receiving from 'get_input_from':\n{}".format(self.get_inputs_from))
 
@@ -196,6 +284,7 @@ class S1MetadataOperator(BaseOperator):
                 local_granules_paths +=  local_granules_path
         uploaded_granules_paths = context['task_instance'].xcom_pull(task_ids=upload_task_ids, key=XCOM_RETURN_KEY)
         original_package_path = context['task_instance'].xcom_pull(task_ids=archive_product_task_id, key=XCOM_RETURN_KEY)
+        granules_dict, bbox = collect_granules_metadata(local_granules_paths, self.granules_upload_dir, self.bands_dict)
 
         if not downloaded:
             log.info("No products from Download task, Nothing to do.")
@@ -218,18 +307,35 @@ class S1MetadataOperator(BaseOperator):
         log.info('safe_package_path: {}'.format(safe_package_path))
         log.info('local_granules_paths: {}'.format(local_granules_paths))
 
+        owslinks_dict = create_owslinks_dict(
+            product_identifier=product_id,
+            granule_bbox=bbox,
+            gs_workspace=self.gs_workspace,
+            gs_wms_layer=self.gs_wms_layer,
+            gs_wms_width=self.gs_wms_width,
+            gs_wms_height=self.gs_wms_height,
+            gs_wms_format=self.gs_wms_format,
+            gs_wms_version=self.gs_wms_version,
+            gs_wfs_featuretype=self.gs_wfs_featuretype,
+            gs_wfs_format=self.gs_wfs_format,
+            gs_wfs_version=self.gs_wfs_version,
+            gs_wcs_coverage_id=self.gs_wcs_coverage_id,
+            gs_wcs_scale_i=self.gs_wcs_scale_i,
+            gs_wcs_scale_j=self.gs_wcs_scale_j,
+            gs_wcs_format=self.gs_wcs_format,
+            gs_wcs_version=self.gs_wcs_version,
+        )
+
         po = PythonOperator(
             task_id="s1_metadata_dictionary_creation",
             python_callable=create_procuct_zip,
             op_kwargs={
                 'sentinel1_product_zip_path': safe_package_path,
-                'granules_paths': local_granules_paths,
-                'granules_upload_dir':self.granules_upload_dir,
-                'uploaded_granules_paths': uploaded_granules_paths,
-                'original_package_path': original_package_path,
+                'granules_dict': granules_dict,
                 'working_dir': working_dir,
                 'safe_package_filename': safe_package_filename,
-                'original_package_download_base_url' : self.original_package_download_base_url
+                'original_package_download_base_url' : self.original_package_download_base_url,
+                'owslinks_dict' : owslinks_dict,
             }
         )
         zip_paths=list()

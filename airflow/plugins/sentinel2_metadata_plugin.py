@@ -5,6 +5,7 @@ from airflow.models import XCOM_RETURN_KEY
 import logging
 import os
 import s2reader
+from collections import namedtuple
 log = logging.getLogger(__name__)
 from pgmagick import Image, Blob
 import 	zipfile, json
@@ -12,8 +13,7 @@ import shutil
 import pprint
 import xml.etree.ElementTree as ET
 from geoserver_plugin import create_owslinks_dict
-from geoserver_plugin import generate_wfs_dict, generate_wcs_dict, generate_wms_dict
-from geoserver_plugin import generate_wfs_cap_dict, generate_wms_cap_dict, generate_wcs_cap_dict
+
 
 
 def get_bbox_from_granules_coordinates(granule_coordinates):

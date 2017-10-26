@@ -41,20 +41,27 @@ dhus_search_keywords = {
 # GeoServer
 #
 geoserver_workspace = "sentinel"
+geoserver_featuretype = "SENTINEL1_FT"
+
+geoserver_oseo_wfs_format = "application/json"
+geoserver_oseo_wfs_version = "2.0.0"
 geoserver_layer = "SENTINEL1"
 geoserver_coverage = "SENTINEL1"
-geoserver_featuretype = "SENTINEL1_FT"
 geoserver_oseo_collection="SENTINEL1"
 geoserver_oseo_wms_width = 768
 geoserver_oseo_wms_height = 768
 geoserver_oseo_wms_format = "image/png"
+geoserver_oseo_wms_version = "1.3.0"
 geoserver_oseo_wcs_scale_i = 0.01
 geoserver_oseo_wcs_scale_j = 0.01
 geoserver_oseo_wcs_format = "image/tiff"
+geoserver_oseo_wcs_version = "2.0.1"
 
 #
 # Product
 #
+
+bands_dict = {"hv":"hv","hh":"hh", "vv":"vv", "vh":"vh"}
 
 try:
     from override.s1_grd_1sdv import *
