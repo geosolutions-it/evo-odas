@@ -70,8 +70,9 @@ def generate_wcs_cap_dict(product_identifier, gs_workspace, coverage_id, gs_wcs_
             "method": "GET",
             "code": "GetCapabilities",
             "type": "application/xml",
-            "href": "${BASE_URL}"+"/{}/ows?service=WCS&request=GetCapabilities&version={}&CQL_FILTER=eoIdentifier='{}'".format(
+            "href": "${BASE_URL}"+"/{}/{}/ows?service=WCS&request=GetCapabilities&version={}&CQL_FILTER=eoIdentifier='{}'".format(
                 gs_workspace,
+		coverage_id,
                 gs_wcs_version,
                 product_identifier
                 )
