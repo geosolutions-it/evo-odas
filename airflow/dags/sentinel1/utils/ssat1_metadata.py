@@ -11,28 +11,6 @@ from templates_renderer import TemplatesResolver
 import config as CFG
 import config.s1_grd_1sdv as S1GRD1SDV
 
-# OWS links settings for WMS
-GS_WMS_WORKSPACE=S1GRD1SDV.geoserver_workspace
-GS_WMS_LAYER=S1GRD1SDV.geoserver_layer
-GS_WMS_VERSION="1.3.0"
-GS_WMS_WIDTH=S1GRD1SDV.geoserver_oseo_wms_width
-GS_WMS_HEIGHT=S1GRD1SDV.geoserver_oseo_wms_height
-GS_WMS_FORMAT=S1GRD1SDV.geoserver_oseo_wms_format
-
-# OWS links settings for WFS
-GS_WFS_WORKSPACE=S1GRD1SDV.geoserver_workspace
-GS_WFS_LAYER=S1GRD1SDV.geoserver_featuretype
-GS_WFS_VERSION="2.0.0"
-GS_WFS_FORMAT="application/json"
-
-# OWS links settings for WCS
-GS_WCS_WORKSPACE=S1GRD1SDV.geoserver_workspace
-GS_WCS_LAYER=S1GRD1SDV.geoserver_coverage
-GS_WCS_VERSION="2.0.1"
-GS_WCS_SCALE_I='0.1'
-GS_WCS_SCALE_J='0.1'
-GS_WCS_FORMAT="geotiff"
-
 WORKING_DIR=S1GRD1SDV.process_dir
 
 log = logging.getLogger(__name__)

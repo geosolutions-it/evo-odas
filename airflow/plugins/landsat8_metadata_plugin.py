@@ -342,14 +342,15 @@ class Landsat8MTLReaderOperator(BaseOperator):
             parsed_metadata = parse_mtl_data(mtl_fh)
         bounding_box = get_bounding_box(parsed_metadata["PRODUCT_METADATA"])
         bbox_dict={
-            "long_min": min(bounding_box.lllon, bounding_box.lrlon),
+            "long_min": min(bounding_box.lllon, bounding_box.ullon),
             "lat_min" : min(bounding_box.lllat, bounding_box.lrlat),
-            "long_max": min(bounding_box.ullon, bounding_box.urlon),
+            "long_max": min(bounding_box.lrlon, bounding_box.urlon),
             "lat_max" : min(bounding_box.ullat, bounding_box.urlat),
         }
         log.debug("BoundingBox: {}".format(pprint.pformat(bounding_box)))
 
         prepared_metadata = prepare_metadata(parsed_metadata, bounding_box, crs, original_package_location)
+        timeStart, timeEnd = prepared_metadata['properties']['timeStart'], prepared_metadata['properties']['timeEnd']
         product_directory, mtl_name = os.path.split(mtl_path)
         granules_dict = prepare_granules(bounding_box, granule_paths)
         log.debug("Granules Dict: {}".format(pprint.pformat(granules_dict)))

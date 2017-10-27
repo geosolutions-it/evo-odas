@@ -5,7 +5,6 @@ from airflow.models import XCOM_RETURN_KEY
 import logging
 import os
 import s2reader
-from collections import namedtuple
 log = logging.getLogger(__name__)
 from pgmagick import Image, Blob
 import 	zipfile, json
@@ -289,6 +288,7 @@ class Sentinel2MetadataOperator(BaseOperator):
             product_identifier = s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0]
             bbox = get_bbox_from_granules_coordinates(granule_coordinates)
 
+            timeStart, timeEnd = final_metadata_dict["properties"]["timeStart"], final_metadata_dict["properties"]["timeEnd"]
             ows_links_dict = create_owslinks_dict(
                 product_identifier=product_identifier,
                 granule_bbox=bbox,
