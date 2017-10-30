@@ -16,7 +16,7 @@ from airflow.operators import Landsat8SearchOperator
 from airflow.operators import Landsat8ThumbnailOperator
 from airflow.operators import RSYNCOperator
 from geoserver_plugin import publish_product
-from landsat8_metadata_plugin import create_original_package
+from landsat8_plugin import create_original_package
 
 import config as CFG
 import config.landsat8 as LANDSAT8
