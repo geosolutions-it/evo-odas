@@ -12,6 +12,7 @@ from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 from airflow.models import XCOM_RETURN_KEY
+from utils import TemplatesResolver
 from pgmagick import Image
 from osgeo import osr
 
@@ -159,6 +160,7 @@ def prepare_metadata(metadata, bounding_box, crs, original_package_location):
             "timeStart": time_start_end,
             "timeEnd": time_start_end,
             "originalPackageLocation": original_package_location,
+            "htmlDescription": None,
             "thumbnailURL": None,
             "quicklookURL": None,
             "crs": "EPSG:" + crs,
@@ -351,12 +353,25 @@ class Landsat8MTLReaderOperator(BaseOperator):
 
         prepared_metadata = prepare_metadata(parsed_metadata, bounding_box, crs, original_package_location)
         timeStart, timeEnd = prepared_metadata['properties']['timeStart'], prepared_metadata['properties']['timeEnd']
+        # create description.html and dump it to file
+        log.info("Creating description.html")
+        tr = TemplatesResolver()
+        htmlAbstract = tr.generate_product_abstract({
+            "timeStart" : timeStart,
+            "timeEnd" : timeEnd,
+            "originalPackageLocation" : original_package_location
+        })
+        log.debug(pprint.pformat(htmlAbstract))
+        prepared_metadata["htmlDescription"] = htmlAbstract
+
         product_directory, mtl_name = os.path.split(mtl_path)
         granules_dict = prepare_granules(bounding_box, granule_paths)
         log.debug("Granules Dict: {}".format(pprint.pformat(granules_dict)))
 
         ows_links_dict = create_owslinks_dict(
             product_identifier = product_id,
+            timestart= timeStart,
+            timeend = timeEnd,
             granule_bbox= bbox_dict,
             gs_workspace=self.gs_workspace,
             gs_wms_layer=self.gs_wms_layer,
@@ -379,6 +394,7 @@ class Landsat8MTLReaderOperator(BaseOperator):
         ows_links_path = os.path.join(product_directory, "owsLinks.json")
         granules_path = os.path.join(product_directory, "granules.json")
         xml_template_path = os.path.join(product_directory, "metadata.xml")
+        description_html_path = os.path.join(product_directory, "description.html")
 
         # Create product.json
         with open(product_json_path, 'w') as out_json_fh:
@@ -391,8 +407,11 @@ class Landsat8MTLReaderOperator(BaseOperator):
             json.dump(ows_links_dict, out_ows_links_fh, indent=4)
         # Create metadata.xml
         shutil.copyfile(self.metadata_xml_path, xml_template_path)
+        # Create description.html
+        with open(description_html_path, "w") as out_description:
+            out_description.write(htmlAbstract)
 
-        return product_json_path, granules_path, ows_links_path, xml_template_path
+        return product_json_path, granules_path, ows_links_path, xml_template_path, description_html_path
 
 
 class Landsat8ThumbnailOperator(BaseOperator):

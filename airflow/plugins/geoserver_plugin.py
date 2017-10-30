@@ -95,13 +95,13 @@ def generate_wfs_dict(product_identifier, gs_workspace, gs_featuretype, gs_wfs_f
         )
     }
 
-def generate_wms_dict(product_identifier, gs_workspace, gs_layer, bbox, gs_wms_width, gs_wms_height, gs_wms_format, gs_wms_version):
+def generate_wms_dict(product_identifier, gs_workspace, gs_layer, bbox, gs_wms_width, gs_wms_height, gs_wms_format, gs_wms_version, timestart, timeend):
     return {
         "offering": "http://www.opengis.net/spec/owc-atom/1.0/req/wms",
         "method": "GET",
         "code": "GetMap",
         "type": gs_wms_format,
-        "href": r"${BASE_URL}"+"/{}/{}/ows?service=wms&request=GetMap&version={}&LAYERS={}&BBOX={},{},{},{}&WIDTH={}&HEIGHT={}&FORMAT={}&CQL_FILTER=eoIdentifier='{}'".format(
+        "href": r"${BASE_URL}"+"/{}/{}/ows?service=wms&request=GetMap&version={}&LAYERS={}&BBOX={},{},{},{}&WIDTH={}&HEIGHT={}&FORMAT={}&CQL_FILTER=eoIdentifier='{}'&TIME={}/{}".format(
             gs_workspace,
             gs_layer,
             gs_wms_version,
@@ -113,7 +113,9 @@ def generate_wms_dict(product_identifier, gs_workspace, gs_layer, bbox, gs_wms_w
             gs_wms_width,
             gs_wms_height,
             gs_wms_format,
-            product_identifier
+            product_identifier,
+            timestart,
+            timeend
         )
     }
 
@@ -141,6 +143,8 @@ def generate_wcs_dict(product_identifier, bbox, gs_workspace, coverage_id, gs_wc
 
 def create_owslinks_dict(
         product_identifier,
+        timestart,
+        timeend,
         granule_bbox,
         gs_workspace,
         gs_wms_layer,
@@ -193,7 +197,9 @@ def create_owslinks_dict(
             gs_wms_width=gs_wms_width,
             gs_wms_height=gs_wms_height,
             gs_wms_format=gs_wms_format,
-            gs_wms_version=gs_wms_version
+            gs_wms_version=gs_wms_version,
+            timestart = timestart,
+            timeend = timeend
         )
     )
     links.append(

@@ -1,8 +1,39 @@
 import os
+import logging
+import fnmatch
+import pprint
 from airflow.operators import BaseOperator
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.decorators import apply_defaults
 from airflow.models import XCOM_RETURN_KEY
+
+from jinja2 import Environment, FileSystemLoader, Template
+
+log = logging.getLogger(__name__)
+
+TEMPLATE_DIR_NAME='templates'
+
+class TemplatesResolver:
+
+    def __init__(self):
+        dirname = os.path.dirname(os.path.abspath(__file__))
+        template_dir = os.path.join(dirname, TEMPLATE_DIR_NAME)
+        log = logging.getLogger(__name__)
+        log.info(pprint.pformat(template_dir))
+        self.j2_env = Environment(loader=FileSystemLoader(template_dir))
+
+    def generate_product_abstract(self, product_abstract_metadata_dict):
+        return self.j2_env.get_template('product_abstract.html').render(product_abstract_metadata_dict)
+
+    def generate_sentinel1_product_metadata(self, metadata_dict):
+        return self.j2_env.get_template('sentinel1_metadata.xml').render(metadata_dict)
+
+    def generate_sentinel2_product_metadata(self, metadata_dict):
+        return self.j2_env.get_template('sentinel2_metadata.xml').render(metadata_dict)
+
+    def generate_sentinel2_product_metadata(self, metadata_dict):
+        return self.j2_env.get_template('sentinel2_metadata.xml').render(metadata_dict)
+
 
 class MoveFilesOperator(BaseOperator):
     @apply_defaults

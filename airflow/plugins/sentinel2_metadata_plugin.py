@@ -12,6 +12,7 @@ import shutil
 import pprint
 import xml.etree.ElementTree as ET
 from geoserver_plugin import create_owslinks_dict
+from utils import TemplatesResolver
 
 
 
@@ -205,7 +206,7 @@ class Sentinel2MetadataOperator(BaseOperator):
         if self.downloaded_products is None:
             log.info("Nothing to process.")
             return
-        services= [{"wms":("GetCapabilities","GetMap")},{"wfs":("GetCapabilities","GetFeature")},{"wcs":("GetCapabilities","GetCoverage")}]
+
         for product in self.downloaded_products.keys():
             log.info("Processing: {}".format(product))
             with s2reader.open(product) as s2_product:
@@ -278,6 +279,20 @@ class Sentinel2MetadataOperator(BaseOperator):
                                  granule_counter+=1
             final_granules_dict = {"type": "FeatureCollection", "features": features_list}
 
+            timeStart, timeEnd = final_metadata_dict["properties"]["timeStart"], final_metadata_dict["properties"]["timeEnd"]
+            # create description.html and dump it to file
+            log.info("Creating description.html")
+            tr = TemplatesResolver()
+            htmlAbstract = tr.generate_product_abstract({
+                "timeStart": timeStart,
+                "timeEnd": timeEnd,
+                "originalPackageLocation" : final_metadata_dict["properties"]["originalPackageLocation"]
+            })
+            log.debug(pprint.pformat(htmlAbstract))
+            final_metadata_dict['htmlDescription'] = htmlAbstract
+
+            with open(product.strip(".zip")+'/description.html', 'w') as product_outfile:
+                product_outfile.write(htmlAbstract)
             # Note here that the SRID is a property of the granule not the product
             final_metadata_dict["properties"]["crs"] = granule.srid
             with open(product.strip(".zip")+'/product.json', 'w') as product_outfile:
@@ -288,9 +303,10 @@ class Sentinel2MetadataOperator(BaseOperator):
             product_identifier = s2_product.manifest_safe_path.rsplit('.SAFE', 1)[0]
             bbox = get_bbox_from_granules_coordinates(granule_coordinates)
 
-            timeStart, timeEnd = final_metadata_dict["properties"]["timeStart"], final_metadata_dict["properties"]["timeEnd"]
             ows_links_dict = create_owslinks_dict(
                 product_identifier=product_identifier,
+                timestart = timeStart,
+                timeend = timeEnd,
                 granule_bbox=bbox,
                 gs_workspace=self.gs_workspace,
                 gs_wms_layer=self.gs_wms_layer,
@@ -367,7 +383,7 @@ class Sentinel2ProductZipOperator(BaseOperator):
     Args:
         target_dir (str): path of the downloaded product 
         generated_files (list): paths of files that are currently supported (product.json, granules.json, thumbnail.jpeg, owsLinks.json)
-        placeholders (list): paths of files that are currently not supported (metadata.xml, description.html)
+        placeholders (list): paths of files that are currently not supported (metadata.xml)
         get_inputs_from (str): task id used to fetch input products from xcom
     Returns:
         list: list of zip files paths for all the processed products

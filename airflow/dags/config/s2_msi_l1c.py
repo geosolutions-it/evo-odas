@@ -52,9 +52,9 @@ geoserver_oseo_wms_width = 512
 geoserver_oseo_wms_height = 512
 geoserver_oseo_wms_format = "image/jpeg"
 geoserver_oseo_wms_version = "1.3.0"
-geoserver_oseo_wcs_scale_i = 0.01
-geoserver_oseo_wcs_scale_j = 0.01
-geoserver_oseo_wcs_format = "image/jp2"
+geoserver_oseo_wcs_scale_i = 0.1
+geoserver_oseo_wcs_scale_j = 0.1
+geoserver_oseo_wcs_format = "image/tiff"
 geoserver_oseo_wcs_version = "2.0.1"
 
 #
