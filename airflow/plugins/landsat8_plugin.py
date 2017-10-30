@@ -22,6 +22,7 @@ from pgmagick import Image
 from osgeo import osr
 
 from geoserver_plugin import create_owslinks_dict
+from geoserver_plugin import is_product_published
 
 log = logging.getLogger(__name__)
 pp = pprint.PrettyPrinter(indent=2)
@@ -745,49 +746,66 @@ class Landsat8DownloadOperator(BaseOperator):
             download_dir (str): path to the download directory
             get_inputs_from (str): task_id to pull the xcom value from search task
             url_fragment (str): string to be replaced with the filename(.tif/.mtl/.jpg)
+            download_max (int): maximum number of products/scenes to be downloaded
+            geoserver_username (str): account info to connect to Geoserver
+            geoserver_password (str): account info to connect to Geoserver
+            geoserver_rest_url (str): REST url of the geoserver
 
         Returns:
-            target_path (str) : path to the downloaded Landsat-8 product/scene
+            target_path (str) : path to the downloaded Landsat-8 product/scene 
     """
 
     @apply_defaults
-    def __init__(self, download_dir, get_inputs_from, url_fragment,
-                 download_timeout=timedelta(hours=1), *args, **kwargs):
+    def __init__(self, download_dir, get_inputs_from, url_fragment, download_max = None, geoserver_username = None, geoserver_password = None, geoserver_rest_url = None, geoserver_oseo_collection = None, download_timeout=timedelta(hours=1), *args, **kwargs):
         super(Landsat8DownloadOperator, self).__init__(
             execution_timeout=download_timeout, *args, **kwargs)
         self.download_dir = download_dir
         self.get_inputs_from = get_inputs_from
         self.url_fragment = url_fragment
+        self.download_max = download_max
+        self.geoserver_username = geoserver_username
+        self.geoserver_password = geoserver_password
+        self.geoserver_rest_url = geoserver_rest_url
+        self.geoserver_oseo_collection = geoserver_oseo_collection
 
     def execute(self, context):
         task_inputs = context["task_instance"].xcom_pull(self.get_inputs_from)
+        downloaded_products = []
         if task_inputs is None or len(task_inputs) == 0:
             log.info("Nothing to process.")
             return
         for scene in task_inputs:
             product_id, entity_id, download_url = scene
-            target_dir = os.path.join(self.download_dir, entity_id)
-            try:
-               os.makedirs(target_dir)
-            except OSError as exc:
-               if exc.errno == 17:  # directory already exists
-                pass
-            url = download_url.replace(
-               "index.html", "{}_{}".format(product_id, self.url_fragment))
-            target_path = os.path.join(
-               target_dir,
-               "{}_{}".format(product_id, self.url_fragment)
-            )
-            try:
-                urllib.urlretrieve(url, target_path)
-            except Exception:
-               log.exception(
-               msg="Error downloading {}".format(self.url_fragment))
-               raise
+            product_published = is_product_published(self.geoserver_username, self.geoserver_password, self.geoserver_rest_url, collection_id = self.geoserver_oseo_collection, product_id=product_id)
+            # in case the product was already published 
+            if product_published:
+               log.info("Found product {} already published. download operator will skip it".format(product_id))
+               continue
+            # in case the product wasn't published and still within download_max limit
+            elif product_published == False and len(downloaded_products) < self.download_max:
+               target_dir = os.path.join(self.download_dir, entity_id)               
+               try:
+                  os.makedirs(target_dir)
+               except OSError as exc:
+                  if exc.errno == 17:  # directory already exists
+                     pass
+               url = download_url.replace(
+                  "index.html", "{}_{}".format(product_id, self.url_fragment))
+               target_path = os.path.join(
+                  target_dir,
+                  "{}_{}".format(product_id, self.url_fragment)
+               )
+               try:
+                  urllib.urlretrieve(url, target_path)
+                  downloaded_products.append(target_path)
+               except Exception:
+                  log.exception(
+                  msg="Error downloading {}".format(self.url_fragment))
+                  raise
+               else:
+                  return target_path
             else:
-               return target_path
-
-
+               return
 
 class LANDSAT8METADATAPlugin(AirflowPlugin):
     name = "landsat8_metadata_plugin"

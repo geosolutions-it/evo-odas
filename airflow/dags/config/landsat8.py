@@ -49,6 +49,8 @@ order_by = "acquisitiondate"
 # please use ascending or descending for ordering type
 order_type = ascending
 
+download_max = 1
+
 AREAS = [
     Landsat8Area(name="daraa", path=174, row=37, bands=range(1, 12)),
     # These are just some dummy areas in order to test generation of

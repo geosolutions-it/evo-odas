@@ -83,6 +83,11 @@ def generate_dag(area, download_dir, default_args):
         download_dir=download_dir,
         get_inputs_from=search_task.task_id,
         url_fragment="thumb_small.jpg",
+        download_max=LANDSAT8.download_max,
+        geoserver_rest_url=CFG.geoserver_rest_url,
+        geoserver_oseo_collection=LANDSAT8.geoserver_oseo_collection,
+        geoserver_username=CFG.geoserver_username,
+        geoserver_password=CFG.geoserver_password,
         dag=dag
     )
     generate_thumbnail = Landsat8ThumbnailOperator(
@@ -97,6 +102,11 @@ def generate_dag(area, download_dir, default_args):
         download_dir=download_dir,
         get_inputs_from=search_task.task_id,
         url_fragment="MTL.txt",
+        download_max=LANDSAT8.download_max,
+        geoserver_rest_url=CFG.geoserver_rest_url,
+        geoserver_oseo_collection=LANDSAT8.geoserver_oseo_collection,
+        geoserver_username=CFG.geoserver_username,
+        geoserver_password=CFG.geoserver_password,
         dag=dag
     )
 
@@ -117,6 +127,11 @@ def generate_dag(area, download_dir, default_args):
             download_dir=download_dir,
             get_inputs_from=search_task.task_id,
             url_fragment="B{}.TIF".format(band),
+            download_max=LANDSAT8.download_max,
+            geoserver_rest_url=CFG.geoserver_rest_url,
+            geoserver_oseo_collection=LANDSAT8.geoserver_oseo_collection,
+            geoserver_username=CFG.geoserver_username,
+            geoserver_password=CFG.geoserver_password,
             dag=dag
         )
         download_tasks.append(download_band)
