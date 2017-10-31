@@ -79,9 +79,9 @@ class DownloadSceneList(BaseOperator):
             else:
                 raise
 
-        logger.info("Downloading {!r}...".format(self.download_url))
+        log.info("Downloading {!r}...".format(self.download_url))
         download_file(self.download_url, self.download_dir)
-        logger.info("Done!")
+        log.info("Done!")
 
 
 class ExtractSceneList(BaseOperator):
@@ -99,7 +99,7 @@ class ExtractSceneList(BaseOperator):
         )
         target_path = "{}.csv".format(
             os.path.splitext(path_to_extract)[0])
-        logger.info("Extracting {!r} to {!r}...".format(
+        log.info("Extracting {!r} to {!r}...".format(
             path_to_extract, target_path))
         with gzip.open(path_to_extract, 'rb') as zipped_fh, \
              open(target_path, "wb") as extracted_fh:
@@ -127,7 +127,7 @@ class UpdateSceneList(BaseOperator):
                 self.pg_password
             )
         )
-        logger.info("Deleting previous data from db...")
+        log.info("Deleting previous data from db...")
         with db_connection as conn:
             with conn.cursor() as cursor:
                 cursor.execute("DELETE FROM scene_list;")
@@ -135,7 +135,7 @@ class UpdateSceneList(BaseOperator):
         scene_list_path = os.path.join(
             self.download_dir,
             "{}.csv".format(filename))
-        logger.info("Loading data from {!r} into db...".format(
+        log.info("Loading data from {!r} into db...".format(
             scene_list_path))
         with db_connection as conn, open(scene_list_path) as fh:
             fh.readline()
@@ -144,47 +144,50 @@ class UpdateSceneList(BaseOperator):
         return True
 
 
-def create_original_package(get_inputs_from=None, files_list=None, out_dir=None, *args, **kwargs):
+def create_original_package(get_inputs_from=None, downloaded_bands_list=None, out_dir=None, *args, **kwargs):
     # Pull Zip path from XCom
     log.info("create_original_package")
     log.info("""
         get_inputs_from: {}
-        files_list: {}
+        downloaded_bands_list: {}
         out_dir: {}
         """.format(
-               get_inputs_from,
-               files_list,
+        get_inputs_from,
+        downloaded_bands_list,
         out_dir
            )
-           )
+        )
 
     task_instance = kwargs['ti']
     if get_inputs_from != None:
         log.info("Getting inputs from: " + pprint.pformat(get_inputs_from))
         # Searched products from Search Task (list of tuples)
+        '''
         searched_prods = task_instance.xcom_pull(task_ids=get_inputs_from['search_task_id'], key=XCOM_RETURN_KEY)
+        '''
         # Band TIFFs from download task
-        files_list = task_instance.xcom_pull(task_ids=get_inputs_from['download_task_ids'], key=XCOM_RETURN_KEY)
+        downloaded_bands_list = list(task_instance.xcom_pull(task_ids=get_inputs_from['download_task_ids'], key=XCOM_RETURN_KEY))
 
-    assert files_list is not None
-    log.info("File List: {}".format(files_list))
+        log.info("Downloaded Bands List: {}".format(downloaded_bands_list))
+        if downloaded_bands_list:
+            downloaded_bands_list = list(el for el in downloaded_bands_list if el is not None)
+            if len(downloaded_bands_list) == 0:
+                return None
+            # Get Product ID from band file name
+            filename=os.path.basename(downloaded_bands_list[0])
+            m = re.match(r'(.*)_B.+\..+', filename)
+            product_id = m.groups()[0]
 
-    # Get Product ID from band file name
-    '''
-    filename=os.path.basename(files_list[0])
-    m = re.match(r'(.*)_B.+\..+', filename)
-    product_id = m.groups()[0]
-    '''
-    product_ids = list(tup[0] for tup in searched_prods)
+            # ONLY HANDLE 1 PRODUCT AT A TIME
+            zipfile_path = os.path.join(out_dir, product_id + '.zip')
+            with zipfile.ZipFile(zipfile_path, 'w') as myzip:
+                for file in downloaded_bands_list:
+                    if file:
+                        myzip.write(file, os.path.basename(file))
 
-    # ONLY HANDLE 1 PRODUCT AT A TIME
-    product_id = product_ids[0]
-    zipfile_path = os.path.join(out_dir, product_id + '.zip')
-    with zipfile.ZipFile(zipfile_path, 'w') as myzip:
-        for file in files_list:
-            myzip.write(file, os.path.basename(file))
-
-    return zipfile_path
+            return zipfile_path
+        else:
+            return None
 
 
 def parse_mtl_data(buffer):
@@ -595,19 +598,27 @@ class Landsat8ProductZipFileOperator(BaseOperator):
         self.output_dir = output_dir
 
     def execute(self, context):
-        if self.get_inputs_from is None or self.output_dir is None:
+        if self.output_dir is None:
+            raise ValueError("Output directory cannot be None.")
+        if self.get_inputs_from is None:
             log.info("Nothing to process.")
             return
         paths_to_zip = []
         for input_provider in self.get_inputs_from:
             inputs = context["task_instance"].xcom_pull(input_provider)
-            if isinstance(inputs, basestring):
+            if isinstance(inputs, basestring) and inputs != "":
                 paths_to_zip.append(inputs)
-            else:  # the Landsat8MTLReaderOperator returns a tuple of strings
+            elif inputs:  # the Landsat8MTLReaderOperator returns a tuple of strings
                 paths_to_zip.extend(inputs)
+            else:
+                log.info("Non valud input path: {}".format(inputs))
         log.info("paths_to_zip: {}".format(paths_to_zip))
         output_path = os.path.join(self.output_dir, "product.zip")
         output_paths = [ output_path ]
+        # Must contain at least description.html, metadata.xml, product.json, granules.json
+        if len(paths_to_zip) < 4:
+            log.warn("Not enough files to zip: {}".format(paths_to_zip))
+            return
         with zipfile.ZipFile(output_path, "w") as zip_handler:
             for path in paths_to_zip:
                 zip_handler.write(path, os.path.basename(path))
@@ -772,11 +783,12 @@ class Landsat8DownloadOperator(BaseOperator):
             return
         for scene in task_inputs:
             product_id, entity_id, download_url = scene
+            log.info("Downloading Product: {}".format(product_id))
             product_published = is_product_published(self.geoserver_username, self.geoserver_password, self.geoserver_rest_url, collection_id = self.geoserver_oseo_collection, product_id=product_id)
             # in case the product was already published 
             if product_published:
-                log.info("Found product {} already published. download operator will skip it".format(product_id))
-                continue
+               log.info("Product {} already published. download operator will skip it".format(product_id))
+               continue
             # in case the product wasn't published and still within download_max limit
             elif product_published == False and len(downloaded_products) < self.download_max:
                 target_dir = os.path.join(self.download_dir, entity_id)               

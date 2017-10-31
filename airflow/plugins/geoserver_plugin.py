@@ -304,7 +304,6 @@ def get_published_products(geoserver_username, geoserver_password, geoserver_res
 
 def is_product_published(geoserver_username, geoserver_password, geoserver_rest_url, collection_id, product_id, *args, **kwargs):
     # This function returns True if it found the product was published, False if not found
-    log.info("is_product_published called")
     log.info("""
         geoserver_username: {}
         geoserver_password: **
