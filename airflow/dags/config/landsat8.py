@@ -56,8 +56,8 @@ AREAS = [
     Landsat8Area(name="B1_B11", paths_rows=[(37,17), (38,18)], bands=range(1, 12)),
     # These are just some dummy areas in order to test generation of
     # multiple DAGs
-    Landsat8Area(name="neighbour", paths_rows=[(80,37)], bands=[1, 2, 3, 7]),
-    Landsat8Area(name="other", paths_rows=[(111,27)], bands=range(1, 12)),
+    #Landsat8Area(name="neighbour", paths_rows=[(80,37)], bands=[1, 2, 3, 7]),
+    #Landsat8Area(name="other", paths_rows=[(111,27)], bands=range(1, 12)),
 ]
 
 cloud_coverage = 90.9
