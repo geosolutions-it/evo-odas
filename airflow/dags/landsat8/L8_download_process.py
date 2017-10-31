@@ -26,13 +26,11 @@ import config.landsat8 as LANDSAT8
 # be stored
 PROJECT_ROOT = os.path.dirname(
     os.path.dirname(
-        os.path.dirname(
-            os.path.dirname(__file__)
-        )
+        os.path.dirname(__file__)
     )
 )
 
-TEMPLATES_PATH = os.path.join(PROJECT_ROOT, "metadata-ingestion", "templates")
+TEMPLATES_PATH = os.path.join(PROJECT_ROOT, "plugins", "templates")
 
 
 def generate_dag(area, download_dir, default_args):
