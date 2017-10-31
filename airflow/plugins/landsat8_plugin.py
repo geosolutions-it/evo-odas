@@ -102,7 +102,7 @@ class ExtractSceneList(BaseOperator):
         logger.info("Extracting {!r} to {!r}...".format(
             path_to_extract, target_path))
         with gzip.open(path_to_extract, 'rb') as zipped_fh, \
-                open(target_path, "wb") as extracted_fh:
+             open(target_path, "wb") as extracted_fh:
             extracted_fh.write(zipped_fh.read())
 
 
@@ -152,11 +152,11 @@ def create_original_package(get_inputs_from=None, files_list=None, out_dir=None,
         files_list: {}
         out_dir: {}
         """.format(
-        get_inputs_from,
-        files_list,
+               get_inputs_from,
+               files_list,
         out_dir
-        )
-    )
+           )
+           )
 
     task_instance = kwargs['ti']
     if get_inputs_from != None:
@@ -248,8 +248,8 @@ def prepare_metadata(metadata, bounding_box, crs, original_package_location):
                 [bounding_box.lrlon, bounding_box.lrlat],
                 [bounding_box.urlon, bounding_box.urlat],
                 [bounding_box.ullon, bounding_box.ullat],
-            ]],
-        },
+                ]],
+            },
         "properties": {
             "eop:identifier": metadata[
                 "METADATA_FILE_INFO"]["LANDSAT_PRODUCT_ID"],
@@ -301,8 +301,8 @@ def prepare_metadata(metadata, bounding_box, crs, original_package_location):
 
 def prepare_granules(bounding_box, granule_paths):
     coordinates=[[
-                        [bounding_box.ullon, bounding_box.ullat],
-                        [bounding_box.lllon, bounding_box.lllat],
+        [bounding_box.ullon, bounding_box.ullat],
+        [bounding_box.lllon, bounding_box.lllat],
                         [bounding_box.lrlon, bounding_box.lrlat],
                         [bounding_box.urlon, bounding_box.urlat],
                         [bounding_box.ullon, bounding_box.ullat],
@@ -323,11 +323,11 @@ def prepare_granules(bounding_box, granule_paths):
             "geometry": {
                 "type": "Polygon",
                 "coordinates": coordinates,
-            },
+                },
             "properties": {
                 "band": BAND_NAMES[band_name],
                 "location": granule_paths[i]
-            },
+                },
             "id": "GRANULE.{}".format(i+1)
         }
         granules_dict["features"].append(feature)
@@ -674,7 +674,7 @@ class Landsat8SearchOperator(BaseOperator):
             port=self.db_credentials["port"],
         )
         cursor = connection.cursor()
-        data = (self.cloud_coverage, self.area.path, self.area.row, self.startdate, self.enddate)
+        data = (self.cloud_coverage, self.area.paths_rows, self.startdate, self.enddate)
         query = "SELECT productid, entityid, download_url FROM scene_list "
 
         self.conditions_list = []
@@ -688,17 +688,13 @@ class Landsat8SearchOperator(BaseOperator):
         else:
             cloud_condition = ''
 
-        if self.area.path:
-            path_condition =  " path = %s "%(self.area.path)
-            self.conditions_list.append(path_condition)
+        path_row_condition = ''
+        if self.area.paths_rows:
+            for path_row in self.area.paths_rows:
+                path_row_condition +=  " path = %s AND row = %s OR "%(path_row[0],path_row[1])
+            self.conditions_list.append(path_row_condition.strip(" OR "))
         else:
-            path_condition = ''
-
-        if self.area.row:
-            row_condition =  " row = %s "%(self.area.row)
-            self.conditions_list.append(row_condition)
-        else:
-            row_condition = ''
+            path_row_condition = ''
 
         if self.startdate and self.enddate:
             startenddate_condition =  " acquisitiondate BETWEEN '%s' AND '%s' "%(self.startdate,self.enddate)
@@ -733,8 +729,8 @@ class Landsat8SearchOperator(BaseOperator):
             return
         else:
             for record in search_results:
-               log.info(
-                   "Found {} product with {} scene id, available for download "
+                log.info(
+                    "Found {} product with {} scene id, available for download "
                    "through {} ".format(record[0], record[1], record[2]))
             return search_results
 
@@ -779,33 +775,33 @@ class Landsat8DownloadOperator(BaseOperator):
             product_published = is_product_published(self.geoserver_username, self.geoserver_password, self.geoserver_rest_url, collection_id = self.geoserver_oseo_collection, product_id=product_id)
             # in case the product was already published 
             if product_published:
-               log.info("Found product {} already published. download operator will skip it".format(product_id))
-               continue
+                log.info("Found product {} already published. download operator will skip it".format(product_id))
+                continue
             # in case the product wasn't published and still within download_max limit
             elif product_published == False and len(downloaded_products) < self.download_max:
-               target_dir = os.path.join(self.download_dir, entity_id)               
-               try:
-                  os.makedirs(target_dir)
-               except OSError as exc:
-                  if exc.errno == 17:  # directory already exists
-                     pass
-               url = download_url.replace(
-                  "index.html", "{}_{}".format(product_id, self.url_fragment))
-               target_path = os.path.join(
-                  target_dir,
-                  "{}_{}".format(product_id, self.url_fragment)
-               )
-               try:
-                  urllib.urlretrieve(url, target_path)
-                  downloaded_products.append(target_path)
-               except Exception:
-                  log.exception(
-                  msg="Error downloading {}".format(self.url_fragment))
-                  raise
-               else:
-                  return target_path
+                target_dir = os.path.join(self.download_dir, entity_id)               
+                try:
+                    os.makedirs(target_dir)
+                except OSError as exc:
+                    if exc.errno == 17:  # directory already exists
+                        pass
+                url = download_url.replace(
+                    "index.html", "{}_{}".format(product_id, self.url_fragment))
+                target_path = os.path.join(
+                    target_dir,
+                   "{}_{}".format(product_id, self.url_fragment)
+                )
+                try:
+                    urllib.urlretrieve(url, target_path)
+                    downloaded_products.append(target_path)
+                except Exception:
+                    log.exception(
+                        msg="Error downloading {}".format(self.url_fragment))
+                    raise
+                else:
+                    return target_path
             else:
-               return
+                return
 
 class LANDSAT8METADATAPlugin(AirflowPlugin):
     name = "landsat8_metadata_plugin"

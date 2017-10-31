@@ -31,8 +31,7 @@ download_url = 'http://landsat-pds.s3.amazonaws.com/c1/L8/scene_list.gz'
 
 Landsat8Area = namedtuple("Landsat8Area", [
     "name",
-    "path",
-    "row",
+    "paths_rows",
     "bands"
 ])
 
@@ -51,12 +50,14 @@ order_type = ascending
 
 download_max = 1
 
+# For multi paths/rows, please add different paths/rows in pairs  e.g: paths_rows= [(37,17), (38,18)] which will search for those 2 scenes.
+# For single path/row, please declare as following example: paths_rows=[(80,37)]
 AREAS = [
-    Landsat8Area(name="daraa", path=174, row=37, bands=range(1, 12)),
+    Landsat8Area(name="daraa", paths_rows=[(37,17), (38,18)], bands=range(1, 12)),
     # These are just some dummy areas in order to test generation of
     # multiple DAGs
-    Landsat8Area(name="neighbour", path=175, row=37, bands=[1, 2, 3, 7]),
-    Landsat8Area(name="other", path=176, row=37, bands=range(1, 12)),
+    Landsat8Area(name="neighbour", paths_rows=[(80,37)], bands=[1, 2, 3, 7]),
+    Landsat8Area(name="other", paths_rows=[(111,27)], bands=range(1, 12)),
 ]
 
 cloud_coverage = 90.9
