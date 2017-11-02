@@ -9,18 +9,16 @@ from airflow.models import XCOM_RETURN_KEY
 
 from jinja2 import Environment, FileSystemLoader, Template
 
+import config as CFG
 log = logging.getLogger(__name__)
-
-TEMPLATE_DIR_NAME='templates'
 
 class TemplatesResolver:
 
     def __init__(self):
         dirname = os.path.dirname(os.path.abspath(__file__))
-        template_dir = os.path.join(dirname, TEMPLATE_DIR_NAME)
         log = logging.getLogger(__name__)
-        log.info(pprint.pformat(template_dir))
-        self.j2_env = Environment(loader=FileSystemLoader(template_dir))
+        log.info(pprint.pformat(CFG.templates_base_dir))
+        self.j2_env = Environment(loader=FileSystemLoader(CFG.templates_base_dir))
 
     def generate_product_abstract(self, product_abstract_metadata_dict):
         return self.j2_env.get_template('product_abstract.html').render(product_abstract_metadata_dict)

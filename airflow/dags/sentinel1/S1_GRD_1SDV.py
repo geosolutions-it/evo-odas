@@ -225,6 +225,17 @@ publish_task = PythonOperator(task_id="publish_product_task",
                               },
                               dag = dag)
 
+if CFG.eoxserver_rest_url:
+  publish_eox_task = PythonOperator(task_id="publish_product_eox_task",
+                                python_callable=publish_product,
+                                op_kwargs={
+                                  'geoserver_username': CFG.eoxserver_username,
+                                  'geoserver_password': CFG.eoxserver_password,
+                                  'geoserver_rest_endpoint': CFG.eoxserver_rest_url,
+                                  'get_inputs_from': metadata_task.task_id,
+                                },
+                                dag = dag)
+
 download_task.set_upstream(search_task)
 archive_task.set_upstream(download_task)
 zip_task.set_upstream(download_task)
@@ -235,3 +246,6 @@ for task in upload_tasks:
     metadata_task.set_upstream(task)
 
 publish_task.set_upstream(metadata_task)
+
+if CFG.eoxserver_rest_url:
+  publish_eox_task.set_upstream(metadata_task)

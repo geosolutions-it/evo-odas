@@ -133,9 +133,7 @@ archive_wldprj_task = RSYNCOperator(task_id="upload_granules",
                                     dag=dag)
 
 ## Sentinel-2 Product.zip Operator.
-# The following variables are just pointing to placeholders until we implement the real files.
-CWR = os.path.dirname(os.path.realpath(__file__))
-placeholders_list = [os.path.join(CWR,"metadata.xml")]
+placeholders_list = [os.path.join(CFG.templates_base_dir,"metadata.xml")]
 generated_files_list = ['product/product.json','product/granules.json','product/thumbnail.jpeg', 'product/owsLinks.json']
 
 product_zip_task = Sentinel2ProductZipOperator(task_id = 'create_product_zip_task',
@@ -156,4 +154,17 @@ publish_task = PythonOperator(task_id="publish_product_task",
                               },
                               dag = dag)
 
-search_task >> download_task >> archive_task >> thumbnail_task >> metadata_task >> archive_wldprj_task >> product_zip_task >> publish_task
+if CFG.eoxserver_rest_url:
+  publish_eox_task = PythonOperator(task_id="publish_product_eox_task",
+                                python_callable=publish_product,
+                                op_kwargs={
+                                  'geoserver_username': '',
+                                  'geoserver_password': '',
+                                  'geoserver_rest_endpoint': CFG.eoxserver_rest_url,
+                                  'get_inputs_from': product_zip_task.task_id,
+                                },
+                                dag = dag)
+  search_task >> download_task >> archive_task >> thumbnail_task >> metadata_task >> archive_wldprj_task >> product_zip_task >> publish_task >> publish_eox_task
+  
+else:
+  search_task >> download_task >> archive_task >> thumbnail_task >> metadata_task >> archive_wldprj_task >> product_zip_task >> publish_task

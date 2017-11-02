@@ -2,11 +2,21 @@ import os
 from datetime import datetime, timedelta
 
 #
+# Airflow root directory
+#
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(
+        os.path.dirname(__file__)
+    )
+)
+
+#
 # Paths
 #
 base_dir = os.getenv('BASE_DIR','/var/data/')
 regions_base_dir = os.path.join(base_dir, 'regions')
 repository_base_dir = os.getenv('REPOSITORY_DIR',os.path.join(base_dir, 'repository'))
+templates_base_dir = os.getenv('TEMPLATES_DIR', os.path.join(PROJECT_ROOT,'plugins','templates' ))
 
 #
 # Connections
@@ -20,6 +30,11 @@ dhus_download_max = dhus_filter_max
 geoserver_rest_url = 'http://localhost:8080/geoserver/rest'
 geoserver_username = 'admin'
 geoserver_password = ''
+
+#eoxserver_rest_url = 'http://localhost:8080/eoxserver/product/'
+eoxserver_rest_url = None
+eoxserver_username = ''
+eoxserver_password = ''
 
 postgresql_dbname = 'oseo'
 postgresql_hostname = 'localhost'
