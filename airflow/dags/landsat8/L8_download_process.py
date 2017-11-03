@@ -41,6 +41,7 @@ def generate_dag(area, download_dir, default_args):
         dagrun_timeout=LANDSAT8.dagrun_timeout,
         schedule_interval=LANDSAT8.dag_schedule_interval,
         catchup=LANDSAT8.catchup,
+	max_active_runs=LANDSAT8.max_active_runs,
         params={
             "area": area,
         }
