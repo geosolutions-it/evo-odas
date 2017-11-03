@@ -200,6 +200,9 @@ def collect_granules_metadata(granules_paths, granules_upload_dir, bands_dict):
         "type": "FeatureCollection",
         "features": []
     }
+    bbox = {
+
+    }
     log.info("Collecting granules metadata. Number of granules to process: {}".format(len(granules_paths)))
     for granule in granules_paths:
         granule_name = os.path.basename(granule)
